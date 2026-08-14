@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresensiCloud - Auto Sync Attendance</title>
+    <title>PresensiCloud - Smart Geofencing Attendance</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- TensorFlow.js & BlazeFace CDN untuk Auto-Capture Face Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -77,32 +80,39 @@
             <button @click="verifyLocationStep()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Lanjutkan ke Scan ID</button>
         </div>
 
-        <!-- ================= STEP 2: SCAN QR / NOMOR ID ================= -->
+        <!-- ================= STEP 2: SCAN QR / NOMOR ID (Match to Cloud) ================= -->
         <div x-show="step === 'QR'" class="space-y-4">
             <div class="text-center space-y-1">
                 <h2 class="font-bold text-base">Scan Barcode / Masukkan ID</h2>
-                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code atau uji coba cepat di bawah</p>
+                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code NomerID Anda</p>
             </div>
             <div class="relative w-full h-56 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
                 <div id="qr-reader" class="w-full h-full"></div>
             </div>
-            <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <p class="text-[11px] text-slate-400 text-center">Pegawai terdaftar: <span class="font-bold text-indigo-500" x-text="employees.length"></span> orang (Auto-Sync)</p>
+            <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-center">
+                <p class="text-[11px] text-slate-400">Pegawai terdaftar: <span class="font-bold text-indigo-500" x-text="employees.length"></span> orang (Auto-Sync Cloud)</p>
             </div>
         </div>
 
-        <!-- ================= STEP 3: FOTO WAJAH (PENDUKUNG) ================= -->
+        <!-- ================= STEP 3: FOTO WAJAH (AUTO-CAPTURE FACE DETECTION) ================= -->
         <div x-show="step === 'FACE'" class="space-y-4">
             <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Ambil Foto Pendukung</h2>
-                <p class="text-xs text-indigo-600 font-semibold" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
-                <p class="text-[11px] text-slate-400">Bukti visual kehadiran</p>
+                <h2 class="font-bold text-base">Deteksi Wajah Otomatis</h2>
+                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mencari wajah di depan kamera...</p>
+                <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
             </div>
             <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
                 <video x-ref="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
                 <canvas x-ref="canvasElement" class="hidden"></canvas>
+                <!-- Border Scanner Animasi -->
+                <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
+                    <div class="w-24 h-32 border border-dashed border-indigo-400/70 rounded-xl animate-pulse flex items-center justify-center">
+                        <span class="text-[9px] text-indigo-300 bg-black/40 px-2 py-0.5 rounded-full">Posisikan Wajah</span>
+                    </div>
+                </div>
             </div>
-            <button @click="submitAttendance()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/20">Kirim Absensi ke Cloud</button>
+            <!-- Tombol Fallback jika auto-capture butuh bantuan -->
+            <button @click="triggerAutoCapture()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-xs font-semibold">Paksa Ambil Foto & Kirim</button>
         </div>
 
         <!-- ================= STEP 4: SUCCESS (3 SECONDS DISPLAY) ================= -->
@@ -166,8 +176,11 @@
                 photoSnapshot: null,
                 cameraStream: null,
                 html5QrCode: null,
+                blazefaceModel: null,
+                isDetecting: false,
+                faceStatusText: 'Memuat AI pendeteksi wajah...',
                 
-                // Koordinat Kantor Contoh
+                // Koordinat Kantor Contoh (Ubah sesuai titik kantor Anda)
                 officeLat: -6.175392,
                 officeLng: 106.827153,
 
@@ -182,9 +195,10 @@
                     this.updateClock();
                     setInterval(() => this.updateClock(), 1000);
 
-                    // Otomatis tarik data database dari Cloud saat halaman dibuka pertama kali oleh pengguna
+                    // Auto-sync database dari cloud spreadsheet saat pertama dibuka
                     this.fetchCloudDatabase();
-
+                    // Load AI BlazeFace untuk auto-capture wajah
+                    this.loadFaceModel();
                     // Cek GPS
                     this.checkLocation();
                 },
@@ -192,6 +206,16 @@
                 updateClock() {
                     const now = new Date();
                     this.currentTime = now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID');
+                },
+
+                async loadFaceModel() {
+                    try {
+                        if (typeof blazeface !== 'undefined') {
+                            this.blazefaceModel = await blazeface.load();
+                        }
+                    } catch (e) {
+                        console.warn("Model AI BlazeFace gagal dimuat.");
+                    }
                 },
 
                 checkLocation() {
@@ -262,8 +286,10 @@
                     }, 300);
                 },
 
+                // Pencocokan NomerID dengan Cloud Database
                 processQR(scannedId) {
-                    const found = this.employees.find(e => String(e.NomerID).trim() === String(scannedId).trim());
+                    const cleanId = String(scannedId).trim();
+                    const found = this.employees.find(e => String(e.NomerID).trim() === cleanId);
                     
                     if (found) {
                         this.currentUser = found;
@@ -271,13 +297,13 @@
                             try { this.html5QrCode.stop(); } catch (e) {}
                         }
                         this.step = 'FACE';
-                        this.startCamera();
+                        this.startCameraAndDetect();
                     } else {
                         this.handleFailure("NomerID barcode tidak terdaftar di database cloud!");
                     }
                 },
 
-                startCamera() {
+                startCameraAndDetect() {
                     setTimeout(async () => {
                         try {
                             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
@@ -285,17 +311,48 @@
                             if (this.$refs.videoElement) {
                                 this.$refs.videoElement.srcObject = stream;
                             }
-                        } catch (err) {}
+                            this.isDetecting = true;
+                            this.runAutoCaptureLoop();
+                        } catch (err) {
+                            this.faceStatusText = "Akses kamera depan ditolak.";
+                        }
                     }, 200);
                 },
 
+                // Loop Auto-Capture Wajah Berbasis AI
+                async runAutoCaptureLoop() {
+                    if (this.step !== 'FACE' || !this.isDetecting) return;
+
+                    const video = this.$refs.videoElement;
+                    if (video && video.readyState === 4 && this.blazefaceModel) {
+                        try {
+                            const predictions = await this.blazefaceModel.estimateFaces(video, false);
+                            if (predictions.length > 0) {
+                                this.faceStatusText = "Wajah terdeteksi! Mengambil foto...";
+                                this.isDetecting = false;
+                                this.submitAttendance();
+                                return;
+                            } else {
+                                this.faceStatusText = "Posisikan wajah di depan kamera...";
+                            }
+                        } catch (e) {}
+                    }
+
+                    if (this.isDetecting) {
+                        requestAnimationFrame(() => this.runAutoCaptureLoop());
+                    }
+                },
+
                 stopCamera() {
+                    this.isDetecting = false;
                     if (this.cameraStream) {
                         this.cameraStream.getTracks().forEach(track => track.stop());
                     }
                 },
 
                 async submitAttendance() {
+                    this.stopCamera();
+
                     const video = this.$refs.videoElement;
                     const canvas = this.$refs.canvasElement;
                     if (video && video.videoWidth) {
@@ -308,7 +365,6 @@
                         this.photoSnapshot = "https://via.placeholder.com/150";
                     }
 
-                    this.stopCamera();
                     this.successTime = new Date().toLocaleTimeString('id-ID');
                     this.step = 'VERIFIED';
 
@@ -336,6 +392,13 @@
                     setTimeout(() => {
                         this.resetFullFlow();
                     }, 3000);
+                },
+
+                // Tombol paksa manual jika auto-capture butuh bantuan
+                triggerAutoCapture() {
+                    if (this.isDetecting) {
+                        this.submitAttendance();
+                    }
                 },
 
                 handleFailure(reason) {
@@ -373,6 +436,7 @@
                     this.currentUser = null;
                     this.photoSnapshot = null;
                     this.attempts = 0;
+                    this.isDetecting = false;
                     this.checkLocation();
                 },
 
