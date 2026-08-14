@@ -10,9 +10,9 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- TensorFlow.js & BlazeFace CDN untuk Auto Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+    <!-- TensorFlow.js & BlazeFace CDN (Opsional/Safe Fallback) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js" onerror="console.warn('TFJS failed to load')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js" onerror="console.warn('BlazeFace failed to load')"></script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -95,20 +95,23 @@
                 <h2 class="font-bold text-base">Scan Barcode Pegawai</h2>
                 <p class="text-xs text-slate-500">Arahkan kamera ke QR Code / Barcode NomerID Anda</p>
             </div>
-            <div class="relative w-full h-64 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700">
+            <div class="relative w-full h-64 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
                 <div id="qr-reader" class="w-full h-full"></div>
             </div>
-            <div class="text-center space-y-1">
-                <button @click="simulateQRScan('1001')" class="text-[11px] text-indigo-600 underline font-medium block w-full">Simulasi Scan ID (Budi - 1001)</button>
-                <button @click="simulateQRScan('1002')" class="text-[11px] text-indigo-600 underline font-medium block w-full">Simulasi Scan ID (Siti - 1002)</button>
+            <div class="text-center space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <p class="text-[11px] text-slate-400">Atau uji coba cepat via tombol simulasi:</p>
+                <div class="flex justify-center gap-2">
+                    <button @click="simulateQRScan('1001')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1001 (Budi)</button>
+                    <button @click="simulateQRScan('1002')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1002 (Siti)</button>
+                </div>
             </div>
         </div>
 
-        <!-- ================= STEP 2: AUTO-CAPTURE FACE DETECTION & GPS ================= -->
+        <!-- ================= STEP 2: FACE VERIFICATION & GPS ================= -->
         <div x-show="step === 'FACE'" class="space-y-4">
             <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Deteksi Wajah Otomatis</h2>
-                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mempersiapkan pendeteksi wajah...</p>
+                <h2 class="font-bold text-base">Verifikasi Wajah</h2>
+                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mempersiapkan kamera...</p>
                 <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
             </div>
 
@@ -121,18 +124,14 @@
                 <div class="text-[11px]" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.statusText"></div>
             </div>
 
-            <!-- Camera Preview with AI scanning indicator -->
+            <!-- Camera Preview -->
             <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
                 <video x-ref="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
                 <canvas x-ref="canvasElement" class="hidden"></canvas>
-                <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
-                    <div class="w-28 h-36 border border-dashed border-indigo-400/70 rounded-xl animate-pulse flex items-center justify-center">
-                        <span class="text-[10px] text-indigo-300 bg-black/40 px-2 py-0.5 rounded-full">Posisikan Wajah</span>
-                    </div>
-                </div>
             </div>
-            <!-- Tombol Manual Fallback jika kamera gagal start otomatis -->
-            <button @click="triggerAutoCapture()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-2 rounded-xl text-xs font-semibold">Lewati/Paksa Ambil Foto</button>
+
+            <!-- Tombol Ambil Foto / Capture Manual & Auto -->
+            <button @click="triggerCapture()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Ambil Foto & Verifikasi</button>
         </div>
 
         <!-- ================= STEP 3: SUCCESS (VERIFIED 3 SECONDS) ================= -->
@@ -194,9 +193,7 @@
                 failReason: '',
                 successTime: '',
                 photoSnapshot: null,
-                faceStatusText: 'Mencari wajah di depan kamera...',
-                blazefaceModel: null,
-                isDetecting: false,
+                faceStatusText: 'Posisikan wajah di depan kamera',
                 cameraStream: null,
                 html5QrCode: null,
                 
@@ -206,8 +203,8 @@
                 location: {
                     lat: null,
                     lng: null,
-                    distance: 10, // Default aman untuk testing lokal
-                    statusText: 'Posisi GPS diset default (dalam radius)'
+                    distance: 10, // Default aman
+                    statusText: 'GPS terdeteksi aman'
                 },
 
                 init() {
@@ -220,29 +217,18 @@
                         }
                     });
 
-                    // Safe initialization
+                    // Inisialisasi aman tanpa blocking error
                     try {
                         this.initQRScanner();
-                        this.loadFaceModel();
                         this.checkLocation();
                     } catch (err) {
-                        console.warn("Init warning:", err);
+                        console.error("Init error:", err);
                     }
                 },
 
                 updateClock() {
                     const now = new Date();
                     this.currentTime = now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID');
-                },
-
-                async loadFaceModel() {
-                    try {
-                        if (typeof blazeface !== 'undefined') {
-                            this.blazefaceModel = await blazeface.load();
-                        }
-                    } catch (e) {
-                        console.warn("Model BlazeFace gagal dimuat secara online.");
-                    }
                 },
 
                 initQRScanner() {
@@ -258,7 +244,7 @@
                                     },
                                     (error) => {}
                                 ).catch(err => {
-                                    console.warn("Kamera QR tidak aktif, gunakan tombol simulasi.");
+                                    console.warn("Kamera belakang tidak tersedia, silakan gunakan tombol simulasi.");
                                 });
                             }
                         } catch(e) {
@@ -276,7 +262,7 @@
                             try { this.html5QrCode.stop(); } catch (e) {}
                         }
                         this.step = 'FACE';
-                        this.startCameraAndDetect();
+                        this.startCamera();
                     } else {
                         this.handleFailure("NomerID barcode tidak terdaftar di database!");
                     }
@@ -305,9 +291,8 @@
                             }
                         },
                         (error) => {
-                            // Fallback jika GPS diblokir file:///
                             this.location.distance = 15;
-                            this.location.statusText = "GPS diblokir browser (File mode), diset aman 15m.";
+                            this.location.statusText = "GPS dibatasi browser, diset default aman 15m.";
                         },
                         { enableHighAccuracy: true, timeout: 5000 }
                     );
@@ -324,7 +309,7 @@
                     return R * c;
                 },
 
-                startCameraAndDetect() {
+                startCamera() {
                     setTimeout(async () => {
                         try {
                             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
@@ -332,45 +317,20 @@
                             if (this.$refs.videoElement) {
                                 this.$refs.videoElement.srcObject = stream;
                             }
-                            this.isDetecting = true;
-                            this.runAutoCaptureLoop();
+                            this.faceStatusText = "Kamera aktif, silakan ambil foto.";
                         } catch (err) {
-                            this.faceStatusText = "Akses kamera ditolak. Silakan klik tombol di bawah.";
+                            this.faceStatusText = "Akses kamera ditolak atau tidak didukung.";
                         }
                     }, 200);
                 },
 
-                async runAutoCaptureLoop() {
-                    if (this.step !== 'FACE' || !this.isDetecting) return;
-
-                    const video = this.$refs.videoElement;
-                    if (video && video.readyState === 4 && this.blazefaceModel) {
-                        try {
-                            const predictions = await this.blazefaceModel.estimateFaces(video, false);
-                            if (predictions.length > 0) {
-                                this.faceStatusText = "Wajah terdeteksi! Mengambil foto...";
-                                this.isDetecting = false;
-                                this.triggerAutoCapture();
-                                return;
-                            } else {
-                                this.faceStatusText = "Posisikan wajah di depan kamera...";
-                            }
-                        } catch (e) {}
-                    }
-
-                    if (this.isDetecting) {
-                        requestAnimationFrame(() => this.runAutoCaptureLoop());
-                    }
-                },
-
                 stopCamera() {
-                    this.isDetecting = false;
                     if (this.cameraStream) {
                         this.cameraStream.getTracks().forEach(track => track.stop());
                     }
                 },
 
-                triggerAutoCapture() {
+                triggerCapture() {
                     if (this.location.distance !== null && this.location.distance > 100) {
                         this.handleFailure(`Absensi ditolak! Di luar radius kantor (${this.location.distance.toFixed(1)} meter).`);
                         return;
@@ -449,7 +409,6 @@
                     this.currentUser = null;
                     this.photoSnapshot = null;
                     this.attempts = 0;
-                    this.isDetecting = false;
                     this.initQRScanner();
                 },
 
@@ -477,7 +436,7 @@
                             alert("Format CSV tidak sesuai atau kosong.");
                         }
                     } catch (e) {
-                        alert("Gagal mengambil data (Kemungkinan diblokir CORS file:///). Gunakan Local Server / Live Server.");
+                        alert("Gagal mengambil data: Pastikan link Google Sheet sudah di-Publish to Web (Format CSV) dan izinkan CORS.");
                     }
                 }
             }
