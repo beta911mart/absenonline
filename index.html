@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresensiKu Enterprise - Secure Attendance</title>
+    <title>PresensiKu Cloud - Secure Geofencing Attendance</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- TensorFlow.js & BlazeFace CDN (Opsional/Safe Fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js" onerror="console.warn('TFJS failed to load')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js" onerror="console.warn('BlazeFace failed to load')"></script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -31,33 +28,29 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- HIDDEN ADMIN DASHBOARD (Shortcut: Ctrl + Alt + A) -->
+    <!-- HIDDEN ADMIN CONFIG (Shortcut: Ctrl + Alt + A) -->
     <div x-show="showAdmin" x-cloak class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="glass w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg font-bold flex items-center space-x-2">
-                    <i class="fa-solid fa-gear text-indigo-600"></i>
-                    <span>Admin Configuration (Database Google Sheet)</span>
+                    <i class="fa-solid fa-cloud text-indigo-600"></i>
+                    <span>Konfigurasi Google Apps Script API</span>
                 </h2>
                 <button @click="showAdmin = false" class="text-slate-400 hover:text-slate-600">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
             <div>
-                <label class="block text-xs font-semibold text-slate-500 mb-1">GOOGLE SHEET CSV LINK (Publish to Web)</label>
-                <input type="text" x-model="sheetUrl" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
-            </div>
-            <div class="bg-indigo-500/10 p-4 rounded-2xl text-xs space-y-1 text-indigo-600 dark:text-indigo-400">
-                <p class="font-bold">Format Kolom Google Sheet (Urutan):</p>
-                <p>1. Nama | 2. Jabatan | 3. NomerID | 4. Lainnya (opsional)</p>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">WEB APP URL (Google Apps Script)</label>
+                <input type="text" x-model="gasUrl" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://script.google.com/macros/s/.../exec">
             </div>
             <div class="flex space-x-3 pt-2">
-                <button @click="fetchGoogleSheetData()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Sync Database</button>
+                <button @click="fetchCloudDatabase()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Sinkronisasi Database</button>
                 <button @click="showAdmin = false" class="px-5 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-semibold">Tutup</button>
             </div>
-            <p class="text-xs text-slate-400 text-center">Total Pegawai Tersimpan: <span class="font-bold text-indigo-500" x-text="employees.length"></span></p>
+            <p class="text-xs text-slate-400 text-center">Pegawai Terdaftar di Cache: <span class="font-bold text-indigo-500" x-text="employees.length"></span></p>
         </div>
     </div>
 
@@ -68,17 +61,17 @@
         <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center space-x-2">
                 <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
-                    <i class="fa-solid fa-fingerprint"></i>
+                    <i class="fa-solid fa-location-crosshairs"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-sm tracking-tight">Presensi<span class="text-indigo-600">Ku</span></h1>
+                    <h1 class="font-bold text-sm tracking-tight">Presensi<span class="text-indigo-600">Cloud</span></h1>
                     <p class="text-[10px] text-slate-400" x-text="currentTime"></p>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
                 <span class="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium flex items-center space-x-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>GPS 100m</span>
+                    <span>Radius Max 100m</span>
                 </span>
             </div>
         </div>
@@ -86,62 +79,68 @@
         <!-- ATTEMPT WARNING BANNER -->
         <div x-show="attempts > 0 && step !== 'FAILED'" class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-xl text-xs flex justify-between items-center">
             <span>Sisa Percobaan: <strong x-text="3 - attempts"></strong> dari 3</span>
-            <span class="italic">Harap verifikasi dengan benar</span>
+            <span class="italic">Verifikasi lokasi & identitas</span>
         </div>
 
-        <!-- ================= STEP 1: SCAN QR CODE ================= -->
-        <div x-show="step === 'QR'" class="space-y-4">
-            <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Scan Barcode Pegawai</h2>
-                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code / Barcode NomerID Anda</p>
+        <!-- ================= STEP 1: LOKASI (GEOFENCING UTAMA) ================= -->
+        <div x-show="step === 'LOCATION'" class="space-y-4 text-center py-4">
+            <div class="w-16 h-16 bg-indigo-500/10 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-2xl border border-indigo-500/20 animate-pulse">
+                <i class="fa-solid fa-map-location-dot"></i>
             </div>
-            <div class="relative w-full h-64 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
-                <div id="qr-reader" class="w-full h-full"></div>
+            <div class="space-y-1">
+                <h2 class="font-bold text-base">Verifikasi Lokasi Kantor</h2>
+                <p class="text-xs text-slate-500">Sistem mendeteksi posisi GPS Anda saat ini</p>
             </div>
-            <div class="text-center space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <p class="text-[11px] text-slate-400">Atau uji coba cepat via tombol simulasi:</p>
-                <div class="flex justify-center gap-2">
-                    <button @click="simulateQRScan('1001')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1001 (Budi)</button>
-                    <button @click="simulateQRScan('1002')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1002 (Siti)</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ================= STEP 2: FACE VERIFICATION & GPS ================= -->
-        <div x-show="step === 'FACE'" class="space-y-4">
-            <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Verifikasi Wajah</h2>
-                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mempersiapkan kamera...</p>
-                <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
-            </div>
-
-            <!-- GPS Status Box -->
-            <div class="bg-slate-200/50 dark:bg-slate-900/50 p-3 rounded-xl text-xs space-y-1 border border-slate-300 dark:border-slate-700">
+            <div class="bg-slate-200/50 dark:bg-slate-900/50 p-4 rounded-2xl text-xs space-y-2 border border-slate-300 dark:border-slate-700 text-left">
                 <div class="flex justify-between">
-                    <span class="text-slate-400">Jarak ke Kantor:</span>
+                    <span class="text-slate-400">Jarak Anda:</span>
                     <span class="font-mono font-bold" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.distance !== null ? `${location.distance.toFixed(1)} m` : 'Mendeteksi...'"></span>
                 </div>
-                <div class="text-[11px]" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.statusText"></div>
+                <div class="text-[11px] font-medium" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.statusText"></div>
             </div>
+            <button @click="verifyLocationStep()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Lanjutkan ke Scan ID</button>
+        </div>
 
-            <!-- Camera Preview -->
+        <!-- ================= STEP 2: SCAN QR / NOMOR ID ================= -->
+        <div x-show="step === 'QR'" class="space-y-4">
+            <div class="text-center space-y-1">
+                <h2 class="font-bold text-base">Scan Barcode / Masukkan ID</h2>
+                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code atau uji coba cepat di bawah</p>
+            </div>
+            <div class="relative w-full h-56 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                <div id="qr-reader" class="w-full h-full"></div>
+            </div>
+            <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <p class="text-[11px] text-slate-400 text-center">Simulasi Tes Data Cloud:</p>
+                <div class="flex justify-center gap-2">
+                    <button @click="processQR('1001')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1001 (Budi)</button>
+                    <button @click="processQR('1002')" class="px-3 py-1.5 bg-indigo-500/10 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-500/20">ID: 1002 (Siti)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= STEP 3: FOTO WAJAH (PENDUKUNG) ================= -->
+        <div x-show="step === 'FACE'" class="space-y-4">
+            <div class="text-center space-y-1">
+                <h2 class="font-bold text-base">Ambil Foto Pendukung</h2>
+                <p class="text-xs text-indigo-600 font-semibold" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
+                <p class="text-[11px] text-slate-400">Bukti visual kehadiran</p>
+            </div>
             <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
                 <video x-ref="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
                 <canvas x-ref="canvasElement" class="hidden"></canvas>
             </div>
-
-            <!-- Tombol Ambil Foto / Capture Manual & Auto -->
-            <button @click="triggerCapture()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Ambil Foto & Verifikasi</button>
+            <button @click="submitAttendance()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/20">Kirim Absensi ke Cloud</button>
         </div>
 
-        <!-- ================= STEP 3: SUCCESS (VERIFIED 3 SECONDS) ================= -->
+        <!-- ================= STEP 4: SUCCESS (3 SECONDS DISPLAY) ================= -->
         <div x-show="step === 'VERIFIED'" class="space-y-6 py-4 text-center">
             <div class="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-emerald-500/20 animate-bounce">
                 <i class="fa-solid fa-circle-check"></i>
             </div>
             <div>
-                <h2 class="text-lg font-bold text-emerald-500">BERHASIL TERVERIFIKASI</h2>
-                <p class="text-xs text-slate-400">Menyimpan data kehadiran...</p>
+                <h2 class="text-lg font-bold text-emerald-500">ABSENSI BERHASIL DICATAT</h2>
+                <p class="text-xs text-slate-400">Data telah tersimpan di Google Spreadsheet</p>
             </div>
 
             <!-- Bio & Photo Card -->
@@ -156,12 +155,12 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px]">
                     <div><span class="text-slate-400">Waktu:</span> <strong x-text="successTime"></strong></div>
-                    <div><span class="text-slate-400">Jarak:</span> <strong x-text="location.distance?.toFixed(1) + ' m'"></strong></div>
+                    <div><span class="text-slate-400">Jarak GPS:</span> <strong x-text="location.distance?.toFixed(1) + ' m'"></strong></div>
                 </div>
             </div>
         </div>
 
-        <!-- ================= STEP 4: FAILED / LOCKED (MAX 3 ATTEMPTS) ================= -->
+        <!-- ================= STEP 5: FAILED / LOCKED ================= -->
         <div x-show="step === 'FAILED'" class="space-y-6 py-6 text-center">
             <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-rose-500/20">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -181,49 +180,47 @@
             return {
                 showAdmin: false,
                 darkMode: localStorage.getItem('darkMode') === 'true',
-                step: 'QR',
+                step: 'LOCATION', // LOCATION -> QR -> FACE -> VERIFIED
                 currentTime: '',
-                sheetUrl: localStorage.getItem('sheetUrl') || '',
+                gasUrl: localStorage.getItem('gasUrl') || '',
                 employees: JSON.parse(localStorage.getItem('employees')) || [
-                    { Nama: "Budi Santoso", Jabatan: "Software Engineer", NomerID: "1001", Lainnya: "IT Division" },
-                    { Nama: "Siti Rahma", Jabatan: "UI/UX Designer", NomerID: "1002", Lainnya: "Design Division" }
+                    { Nama: "Budi Santoso", Jabatan: "Software Engineer", NomerID: "1001" },
+                    { Nama: "Siti Rahma", Jabatan: "UI/UX Designer", NomerID: "1002" }
                 ],
                 currentUser: null,
                 attempts: 0,
                 failReason: '',
                 successTime: '',
                 photoSnapshot: null,
-                faceStatusText: 'Posisikan wajah di depan kamera',
                 cameraStream: null,
                 html5QrCode: null,
                 
+                // Koordinat Kantor Contoh
                 officeLat: -6.175392,
                 officeLng: 106.827153,
 
                 location: {
                     lat: null,
                     lng: null,
-                    distance: 10, // Default aman
-                    statusText: 'GPS terdeteksi aman'
+                    distance: null,
+                    statusText: 'Mendeteksi posisi GPS...'
                 },
 
                 init() {
                     this.updateClock();
                     setInterval(() => this.updateClock(), 1000);
 
+                    // Shortcut Admin: Ctrl + Alt + A
                     window.addEventListener('keydown', (e) => {
                         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
                             this.showAdmin = !this.showAdmin;
                         }
                     });
 
-                    // Inisialisasi aman tanpa blocking error
-                    try {
-                        this.initQRScanner();
-                        this.checkLocation();
-                    } catch (err) {
-                        console.error("Init error:", err);
-                    }
+                    // Otomatis cek GPS pertama kali
+                    this.checkLocation();
+                    // Coba tarik data cloud jika URL sudah diset
+                    if (this.gasUrl) this.fetchCloudDatabase();
                 },
 
                 updateClock() {
@@ -231,49 +228,12 @@
                     this.currentTime = now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID');
                 },
 
-                initQRScanner() {
-                    setTimeout(() => {
-                        try {
-                            if (document.getElementById("qr-reader")) {
-                                this.html5QrCode = new Html5Qrcode("qr-reader");
-                                this.html5QrCode.start(
-                                    { facingMode: "environment" },
-                                    { fps: 10, qrbox: 220 },
-                                    (decodedText) => {
-                                        this.processQR(decodedText.trim());
-                                    },
-                                    (error) => {}
-                                ).catch(err => {
-                                    console.warn("Kamera belakang tidak tersedia, silakan gunakan tombol simulasi.");
-                                });
-                            }
-                        } catch(e) {
-                            console.warn("QR Scanner error:", e);
-                        }
-                    }, 500);
-                },
-
-                processQR(scannedId) {
-                    const found = this.employees.find(e => String(e.NomerID).trim() === scannedId);
-                    
-                    if (found) {
-                        this.currentUser = found;
-                        if (this.html5QrCode) {
-                            try { this.html5QrCode.stop(); } catch (e) {}
-                        }
-                        this.step = 'FACE';
-                        this.startCamera();
-                    } else {
-                        this.handleFailure("NomerID barcode tidak terdaftar di database!");
-                    }
-                },
-
-                simulateQRScan(id) {
-                    this.processQR(id);
-                },
-
                 checkLocation() {
-                    if (!navigator.geolocation) return;
+                    if (!navigator.geolocation) {
+                        this.location.distance = 10;
+                        this.location.statusText = "GPS tidak didukung, menggunakan mode default aman.";
+                        return;
+                    }
 
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
@@ -285,16 +245,16 @@
                             );
 
                             if (this.location.distance <= 100) {
-                                this.location.statusText = `Berhasil! Dalam radius kantor (${this.location.distance.toFixed(1)}m).`;
+                                this.location.statusText = `Aman! Dalam radius kantor (${this.location.distance.toFixed(1)}m).`;
                             } else {
                                 this.location.statusText = `Di luar radius kantor (${this.location.distance.toFixed(1)}m > 100m max).`;
                             }
                         },
                         (error) => {
                             this.location.distance = 15;
-                            this.location.statusText = "GPS dibatasi browser, diset default aman 15m.";
+                            this.location.statusText = "Akses GPS dibatasi/gagal, diset default aman.";
                         },
-                        { enableHighAccuracy: true, timeout: 5000 }
+                        { enableHighAccuracy: true, timeout: 6000 }
                     );
                 },
 
@@ -309,6 +269,48 @@
                     return R * c;
                 },
 
+                verifyLocationStep() {
+                    if (this.location.distance !== null && this.location.distance > 100) {
+                        this.handleFailure(`Lokasi ditolak! Anda berada di luar radius kantor (${this.location.distance.toFixed(1)} meter).`);
+                        return;
+                    }
+                    this.step = 'QR';
+                    this.initQRScanner();
+                },
+
+                initQRScanner() {
+                    setTimeout(() => {
+                        try {
+                            if (document.getElementById("qr-reader")) {
+                                this.html5QrCode = new Html5Qrcode("qr-reader");
+                                this.html5QrCode.start(
+                                    { facingMode: "environment" },
+                                    { fps: 10, qrbox: 200 },
+                                    (decodedText) => {
+                                        this.processQR(decodedText.trim());
+                                    },
+                                    (error) => {}
+                                ).catch(err => {});
+                            }
+                        } catch(e) {}
+                    }, 300);
+                },
+
+                processQR(scannedId) {
+                    const found = this.employees.find(e => String(e.NomerID).trim() === scannedId);
+                    
+                    if (found) {
+                        this.currentUser = found;
+                        if (this.html5QrCode) {
+                            try { this.html5QrCode.stop(); } catch (e) {}
+                        }
+                        this.step = 'FACE';
+                        this.startCamera();
+                    } else {
+                        this.handleFailure("NomerID barcode tidak terdaftar di database cloud!");
+                    }
+                },
+
                 startCamera() {
                     setTimeout(async () => {
                         try {
@@ -317,10 +319,7 @@
                             if (this.$refs.videoElement) {
                                 this.$refs.videoElement.srcObject = stream;
                             }
-                            this.faceStatusText = "Kamera aktif, silakan ambil foto.";
-                        } catch (err) {
-                            this.faceStatusText = "Akses kamera ditolak atau tidak didukung.";
-                        }
+                        } catch (err) {}
                     }, 200);
                 },
 
@@ -330,12 +329,7 @@
                     }
                 },
 
-                triggerCapture() {
-                    if (this.location.distance !== null && this.location.distance > 100) {
-                        this.handleFailure(`Absensi ditolak! Di luar radius kantor (${this.location.distance.toFixed(1)} meter).`);
-                        return;
-                    }
-
+                async submitAttendance() {
                     const video = this.$refs.videoElement;
                     const canvas = this.$refs.canvasElement;
                     if (video && video.videoWidth) {
@@ -353,7 +347,27 @@
                     this.step = 'VERIFIED';
 
                     this.speakIndonesian(`Absensi atas nama ${this.currentUser.Nama} berhasil tercatat.`);
-                    this.saveAttendanceHistory();
+                    
+                    // Kirim ke Google Apps Script (Cloud)
+                    if (this.gasUrl) {
+                        try {
+                            await fetch(this.gasUrl, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    name: this.currentUser.Nama,
+                                    nip: this.currentUser.NomerID,
+                                    jabatan: this.currentUser.Jabatan || '-',
+                                    date: new Date().toLocaleDateString('id-ID'),
+                                    time: this.successTime,
+                                    distance: this.location.distance.toFixed(1)
+                                })
+                            });
+                        } catch(e) {
+                            console.error("Gagal mengirim ke cloud:", e);
+                        }
+                    }
 
                     setTimeout(() => {
                         this.resetFullFlow();
@@ -372,8 +386,8 @@
                         this.step = 'FAILED';
                     } else {
                         alert(`${reason} (Percobaan ke-${this.attempts} dari 3)`);
-                        this.step = 'QR';
-                        this.initQRScanner();
+                        this.step = 'LOCATION';
+                        this.checkLocation();
                     }
                 },
 
@@ -381,7 +395,7 @@
                     if ('speechSynthesis' in window) {
                         const synth = window.speechSynthesis;
                         const voices = synth.getVoices();
-                        const idVoice = voices.find(v => (v.lang === 'id-ID' || v.lang === 'id') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('wanita') || v.name.toLowerCase().includes('indonesia'))) || 
+                        const idVoice = voices.find(v => (v.lang === 'id-ID' || v.lang === 'id') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('wanita'))) || 
                                         voices.find(v => v.lang === 'id-ID' || v.lang === 'id');
                         const utter = new SpeechSynthesisUtterance(text);
                         if (idVoice) utter.voice = idVoice;
@@ -390,53 +404,28 @@
                     }
                 },
 
-                saveAttendanceHistory() {
-                    const history = JSON.parse(localStorage.getItem('attendance_history')) || [];
-                    history.unshift({
-                        name: this.currentUser.Nama,
-                        nip: this.currentUser.NomerID,
-                        jabatan: this.currentUser.Jabatan,
-                        time: this.successTime,
-                        date: new Date().toLocaleDateString('id-ID'),
-                        distance: this.location.distance,
-                        photo: this.photoSnapshot
-                    });
-                    localStorage.setItem('attendance_history', JSON.stringify(history));
-                },
-
                 resetFullFlow() {
-                    this.step = 'QR';
+                    this.step = 'LOCATION';
                     this.currentUser = null;
                     this.photoSnapshot = null;
                     this.attempts = 0;
-                    this.initQRScanner();
+                    this.checkLocation();
                 },
 
-                async fetchGoogleSheetData() {
-                    if (!this.sheetUrl) {
-                        alert("Masukkan link CSV Google Sheet terlebih dahulu!");
-                        return;
-                    }
+                async fetchCloudDatabase() {
+                    if (!this.gasUrl) return;
                     try {
-                        const response = await fetch(this.sheetUrl);
-                        const csv = await response.text();
-                        const lines = csv.split('\n');
-                        const parsed = lines.slice(1).map(line => {
-                            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                            return { Nama: cols[0], Jabatan: cols[1], NomerID: cols[2], Lainnya: cols[3] || '' };
-                        }).filter(e => e.NomerID);
-
-                        if (parsed.length > 0) {
-                            this.employees = parsed;
-                            localStorage.setItem('employees', JSON.stringify(this.employees));
-                            localStorage.setItem('sheetUrl', this.sheetUrl);
-                            alert(`Berhasil sync ${parsed.length} data pegawai!`);
+                        const res = await fetch(this.gasUrl);
+                        const data = await res.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            this.employees = data;
+                            localStorage.setItem('employees', JSON.stringify(data));
+                            localStorage.setItem('gasUrl', this.gasUrl);
+                            alert(`Berhasil memuat ${data.length} data pegawai dari Cloud Spreadsheet!`);
                             this.showAdmin = false;
-                        } else {
-                            alert("Format CSV tidak sesuai atau kosong.");
                         }
-                    } catch (e) {
-                        alert("Gagal mengambil data: Pastikan link Google Sheet sudah di-Publish to Web (Format CSV) dan izinkan CORS.");
+                    } catch(e) {
+                        alert("Gagal terhubung ke Apps Script Web App URL.");
                     }
                 }
             }
