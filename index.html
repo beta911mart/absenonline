@@ -234,10 +234,10 @@
                                 this.officeLat, this.officeLng
                             );
 
-                            if (this.location.distance <= 100) {
+                            if (this.location.distance <= 150) {
                                 this.location.statusText = `Aman! Dalam radius kantor (${this.location.distance.toFixed(1)}m).`;
                             } else {
-                                this.location.statusText = `Di luar radius kantor (${this.location.distance.toFixed(1)}m > 100m max).`;
+                                this.location.statusText = `Di luar radius kantor (${this.location.distance.toFixed(1)}m > 150m max).`;
                             }
                         },
                         (error) => {
