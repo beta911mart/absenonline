@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="id" x-data="appData()" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PresensiKu Enterprise - Auto Face Detection</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- HTML5 QR Code Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- TensorFlow.js & BlazeFace CDN untuk Auto Face Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-indigo-500 selection:text-white">
+
+    <!-- HIDDEN ADMIN DASHBOARD (Shortcut: Ctrl + Alt + A) -->
+    <div x-show="showAdmin" x-cloak class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-gear text-indigo-600"></i>
+                    <span>Admin Configuration (Database Google Sheet)</span>
+                </h2>
+                <button @click="showAdmin = false" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 mb-1">GOOGLE SHEET CSV LINK (Publish to Web)</label>
+                <input type="text" x-model="sheetUrl" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+            </div>
+            <div class="bg-indigo-500/10 p-4 rounded-2xl text-xs space-y-1 text-indigo-600 dark:text-indigo-400">
+                <p class="font-bold">Format Kolom Google Sheet (Urutan):</p>
+                <p>1. Nama | 2. Jabatan | 3. NomerID | 4. Lainnya (opsional)</p>
+            </div>
+            <div class="flex space-x-3 pt-2">
+                <button @click="fetchGoogleSheetData()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Sync Database</button>
+                <button @click="showAdmin = false" class="px-5 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-semibold">Tutup</button>
+            </div>
+            <p class="text-xs text-slate-400 text-center">Total Pegawai Tersimpan: <span class="font-bold text-indigo-500" x-text="employees.length"></span></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="w-full max-w-md glass rounded-3xl shadow-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800/60 p-6 space-y-6">
+
+        <!-- Header Status Bar -->
+        <div class="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-800">
+            <div class="flex items-center space-x-2">
+                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
+                    <i class="fa-solid fa-fingerprint"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-tight">Presensi<span class="text-indigo-600">Ku</span></h1>
+                    <p class="text-[10px] text-slate-400" x-text="currentTime"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium flex items-center space-x-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>GPS 100m</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- ATTEMPT WARNING BANNER -->
+        <div x-show="attempts > 0 && step !== 'FAILED'" class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-xl text-xs flex justify-between items-center">
+            <span>Sisa Percobaan: <strong x-text="3 - attempts"></strong> dari 3</span>
+            <span class="italic">Harap verifikasi dengan benar</span>
+        </div>
+
+        <!-- ================= STEP 1: SCAN QR CODE ================= -->
+        <div x-show="step === 'QR'" class="space-y-4">
+            <div class="text-center space-y-1">
+                <h2 class="font-bold text-base">Scan Barcode Pegawai</h2>
+                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code / Barcode NomerID Anda</p>
+            </div>
+            <div class="relative w-full h-64 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700">
+                <div id="qr-reader" class="w-full h-full"></div>
+            </div>
+            <div class="text-center">
+                <button @click="simulateQRScan('1001')" class="text-[11px] text-indigo-600 underline font-medium">Simulasi Scan ID (Test)</button>
+            </div>
+        </div>
+
+        <!-- ================= STEP 2: AUTO-CAPTURE FACE DETECTION & GPS ================= -->
+        <div x-show="step === 'FACE'" class="space-y-4">
+            <div class="text-center space-y-1">
+                <h2 class="font-bold text-base">Deteksi Wajah Otomatis</h2>
+                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mempersiapkan pendeteksi wajah...</p>
+                <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
+            </div>
+
+            <!-- GPS Status Box -->
+            <div class="bg-slate-200/50 dark:bg-slate-900/50 p-3 rounded-xl text-xs space-y-1 border border-slate-300 dark:border-slate-700">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Jarak ke Kantor:</span>
+                    <span class="font-mono font-bold" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.distance !== null ? `${location.distance.toFixed(1)} m` : 'Mendeteksi...'"></span>
+                </div>
+                <div class="text-[11px]" :class="location.distance <= 100 ? 'text-emerald-500' : 'text-rose-500'" x-text="location.statusText"></div>
+            </div>
+
+            <!-- Camera Preview with AI scanning indicator -->
+            <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
+                <video x-ref="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas x-ref="canvasElement" class="hidden"></canvas>
+                <!-- Scanning Overlay Animation -->
+                <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
+                    <div class="w-28 h-36 border border-dashed border-indigo-400/70 rounded-xl animate-pulse flex items-center justify-center">
+                        <span class="text-[10px] text-indigo-300 bg-black/40 px-2 py-0.5 rounded-full">Posisikan Wajah</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= STEP 3: SUCCESS (VERIFIED 3 SECONDS) ================= -->
+        <div x-show="step === 'VERIFIED'" class="space-y-6 py-4 text-center">
+            <div class="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-emerald-500/20 animate-bounce">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-emerald-500">BERHASIL TERVERIFIKASI</h2>
+                <p class="text-xs text-slate-400">Menyimpan data kehadiran...</p>
+            </div>
+
+            <!-- Bio & Photo Card -->
+            <div class="glass p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-left">
+                <div class="flex items-center space-x-3">
+                    <img :src="photoSnapshot" class="w-14 h-14 rounded-xl object-cover border border-slate-300 dark:border-slate-700">
+                    <div>
+                        <h4 class="font-bold text-sm" x-text="currentUser?.Nama"></h4>
+                        <p class="text-xs text-indigo-600 font-medium" x-text="currentUser?.Jabatan"></p>
+                        <p class="text-[10px] font-mono text-slate-400" x-text="'ID: ' + currentUser?.NomerID"></p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px]">
+                    <div><span class="text-slate-400">Waktu:</span> <strong x-text="successTime"></strong></div>
+                    <div><span class="text-slate-400">Jarak:</span> <strong x-text="location.distance?.toFixed(1) + ' m'"></strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= STEP 4: FAILED / LOCKED (MAX 3 ATTEMPTS) ================= -->
+        <div x-show="step === 'FAILED'" class="space-y-6 py-6 text-center">
+            <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-rose-500/20">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-lg font-bold text-rose-500">ABSENSI DITOLAK</h2>
+                <p class="text-xs text-slate-500" x-text="failReason"></p>
+            </div>
+            <button @click="resetFullFlow()" class="w-full bg-slate-800 dark:bg-slate-700 text-white py-3 rounded-xl text-xs font-bold transition-all">Ulangi dari Awal</button>
+        </div>
+
+    </div>
+
+    <!-- JavaScript Aplikasi -->
+    <script>
+        function appData() {
+            return {
+                showAdmin: false,
+                darkMode: localStorage.getItem('darkMode') === 'true',
+                step: 'QR', // QR, FACE, VERIFIED, FAILED
+                currentTime: '',
+                sheetUrl: localStorage.getItem('sheetUrl') || '',
+                employees: JSON.parse(localStorage.getItem('employees')) || [
+                    { Nama: "Budi Santoso", Jabatan: "Software Engineer", NomerID: "1001", Lainnya: "IT Division" },
+                    { Nama: "Siti Rahma", Jabatan: "UI/UX Designer", NomerID: "1002", Lainnya: "Design Division" }
+                ],
+                currentUser: null,
+                attempts: 0,
+                failReason: '',
+                successTime: '',
+                photoSnapshot: null,
+                faceStatusText: 'Mencari wajah di depan kamera...',
+                blazefaceModel: null,
+                isDetecting: false,
+                
+                // Koordinat Kantor (Contoh Kantor Pusat)
+                officeLat: -6.175392,
+                officeLng: 106.827153,
+
+                location: {
+                    lat: null,
+                    lng: null,
+                    distance: null,
+                    statusText: 'Mendeteksi posisi GPS...'
+                },
+
+                init() {
+                    this.updateClock();
+                    setInterval(() => this.updateClock(), 1000);
+
+                    // Shortcut Admin: Ctrl + Alt + A
+                    window.addEventListener('keydown', (e) => {
+                        if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
+                            this.showAdmin = !this.showAdmin;
+                        }
+                    });
+
+                    this.initQRScanner();
+                    this.loadFaceModel();
+                },
+
+                updateClock() {
+                    const now = new Date();
+                    this.currentTime = now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + now.toLocaleTimeString('id-ID');
+                },
+
+                // Inisialisasi Model AI BlazeFace
+                async loadFaceModel() {
+                    try {
+                        this.blazefaceModel = await blazeface.load();
+                        console.log("Model AI BlazeFace berhasil dimuat.");
+                    } catch (e) {
+                        console.warn("Gagal memuat model face detection:", e);
+                    }
+                },
+
+                // Inisialisasi QR Code Scanner via Html5Qrcode
+                initQRScanner() {
+                    setTimeout(() => {
+                        if (this.html5QrCode) {
+                            try { this.html5QrCode.stop(); } catch (e) {}
+                        }
+                        this.html5QrCode = new Html5Qrcode("qr-reader");
+                        this.html5QrCode.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: 220 },
+                            (decodedText) => {
+                                this.processQR(decodedText.trim());
+                            },
+                            (error) => {}
+                        ).catch(err => {
+                            console.warn("Kamera belakang tidak tersedia.");
+                        });
+                    }, 300);
+                },
+
+                processQR(scannedId) {
+                    const found = this.employees.find(e => String(e.NomerID).trim() === scannedId);
+                    
+                    if (found) {
+                        this.currentUser = found;
+                        if (this.html5QrCode) {
+                            try { this.html5QrCode.stop(); } catch (e) {}
+                        }
+                        this.step = 'FACE';
+                        this.startCameraAndDetect();
+                        this.checkLocation();
+                    } else {
+                        this.handleFailure("NomerID barcode tidak terdaftar di database!");
+                    }
+                },
+
+                simulateQRScan(id) {
+                    this.processQR(id);
+                },
+
+                // GPS & Radius 100m Check
+                checkLocation() {
+                    if (!navigator.geolocation) {
+                        this.location.distance = 0; 
+                        this.location.statusText = "GPS tidak didukung browser, diizinkan otomatis.";
+                        return;
+                    }
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.location.lat = position.coords.latitude;
+                            this.location.lng = position.coords.longitude;
+                            this.location.distance = this.calculateDistance(
+                                this.location.lat, this.location.lng,
+                                this.officeLat, this.officeLng
+                            );
+
+                            if (this.location.distance <= 100) {
+                                this.location.statusText = `Berhasil! Dalam radius kantor (${this.location.distance.toFixed(1)}m).`;
+                            } else {
+                                this.location.statusText = `Di luar radius kantor (${this.location.distance.toFixed(1)}m > 100m max).`;
+                            }
+                        },
+                        (error) => {
+                            this.location.distance = 0;
+                            this.location.statusText = "Gagal membaca GPS, koordinat diabaikan.";
+                        },
+                        { enableHighAccuracy: true }
+                    );
+                },
+
+                calculateDistance(lat1, lon1, lat2, lon2) {
+                    const R = 6371e3; // meter
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                              Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    return R * c;
+                },
+
+                startCameraAndDetect() {
+                    setTimeout(async () => {
+                        try {
+                            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                            this.cameraStream = stream;
+                            if (this.$refs.videoElement) {
+                                this.$refs.videoElement.srcObject = stream;
+                            }
+                            this.isDetecting = true;
+                            this.runAutoCaptureLoop();
+                        } catch (err) {
+                            this.faceStatusText = "Akses kamera depan ditolak.";
+                        }
+                    }, 200);
+                },
+
+                // Loop Auto-Capture menggunakan BlazeFace AI
+                async runAutoCaptureLoop() {
+                    if (this.step !== 'FACE' || !this.isDetecting) return;
+
+                    const video = this.$refs.videoElement;
+                    if (video && video.readyState === 4 && this.blazefaceModel) {
+                        try {
+                            const predictions = await this.blazefaceModel.estimateFaces(video, false);
+                            if (predictions.length > 0) {
+                                // Wajah terdeteksi! Lakukan auto-capture
+                                this.faceStatusText = "Wajah terdeteksi! Mengambil foto...";
+                                this.isDetecting = false;
+                                this.triggerAutoCapture();
+                                return;
+                            } else {
+                                this.faceStatusText = "Posisikan wajah di depan kamera...";
+                            }
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                    // Lanjutkan loop pengecekan jika belum tertangkap
+                    if (this.isDetecting) {
+                        requestAnimationFrame(() => this.runAutoCaptureLoop());
+                    }
+                },
+
+                stopCamera() {
+                    this.isDetecting = false;
+                    if (this.cameraStream) {
+                        this.cameraStream.getTracks().forEach(track => track.stop());
+                    }
+                },
+
+                triggerAutoCapture() {
+                    // Cek radius GPS (maks 100 meter)
+                    if (this.location.distance !== null && this.location.distance > 100) {
+                        this.handleFailure(`Absensi ditolak! Anda berada di luar radius kantor (${this.location.distance.toFixed(1)} meter). Maksimal 100 meter.`);
+                        return;
+                    }
+
+                    // Ambil Snapshot Foto Wajah Otomatis
+                    const video = this.$refs.videoElement;
+                    const canvas = this.$refs.canvasElement;
+                    canvas.width = video.videoWidth || 320;
+                    canvas.height = video.videoHeight || 240;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    this.photoSnapshot = canvas.toDataURL('image/png');
+
+                    this.stopCamera();
+
+                    // Sukses Verifikasi
+                    this.successTime = new Date().toLocaleTimeString('id-ID');
+                    this.step = 'VERIFIED';
+
+                    // Suara Sapaan Bahasa Indonesia Wanita via Web Speech API
+                    this.speakIndonesian(`Absensi atas nama ${this.currentUser.Nama} berhasil tercatat.`);
+
+                    // Simpan ke LocalStorage history
+                    this.saveAttendanceHistory();
+
+                    // Tampilkan layar sukses selama 3 detik, lalu kembali ke New Scan
+                    setTimeout(() => {
+                        this.resetFullFlow();
+                    }, 3000);
+                },
+
+                handleFailure(reason) {
+                    this.attempts++;
+                    this.stopCamera();
+                    if (this.html5QrCode) {
+                        try { this.html5QrCode.stop(); } catch(e) {}
+                    }
+
+                    if (this.attempts >= 3) {
+                        this.failReason = `${reason} (Batas maksimal 3 kali percobaan terlampaui).`;
+                        this.step = 'FAILED';
+                    } else {
+                        alert(`${reason} (Percobaan ke-${this.attempts} dari 3)`);
+                        this.step = 'QR';
+                        this.initQRScanner();
+                    }
+                },
+
+                speakIndonesian(text) {
+                    if ('speechSynthesis' in window) {
+                        const synth = window.speechSynthesis;
+                        const voices = synth.getVoices();
+                        const idVoice = voices.find(v => (v.lang === 'id-ID' || v.lang === 'id') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('wanita') || v.name.toLowerCase().includes('indonesia'))) || 
+                                        voices.find(v => v.lang === 'id-ID' || v.lang === 'id');
+                        const utter = new SpeechSynthesisUtterance(text);
+                        if (idVoice) utter.voice = idVoice;
+                        utter.lang = 'id-ID';
+                        synth.speak(utter);
+                    }
+                },
+
+                saveAttendanceHistory() {
+                    const history = JSON.parse(localStorage.getItem('attendance_history')) || [];
+                    history.unshift({
+                        name: this.currentUser.Nama,
+                        nip: this.currentUser.NomerID,
+                        jabatan: this.currentUser.Jabatan,
+                        time: this.successTime,
+                        date: new Date().toLocaleDateString('id-ID'),
+                        distance: this.location.distance,
+                        photo: this.photoSnapshot
+                    });
+                    localStorage.setItem('attendance_history', JSON.stringify(history));
+                },
+
+                resetFullFlow() {
+                    this.step = 'QR';
+                    this.currentUser = null;
+                    this.photoSnapshot = null;
+                    this.attempts = 0;
+                    this.isDetecting = false;
+                    this.initQRScanner();
+                },
+
+                // Sync Google Sheet CSV
+                async fetchGoogleSheetData() {
+                    if (!this.sheetUrl) {
+                        alert("Masukkan link CSV Google Sheet terlebih dahulu!");
+                        return;
+                    }
+                    try {
+                        const response = await fetch(this.sheetUrl);
+                        const csv = await response.text();
+                        const lines = csv.split('\n');
+                        const parsed = lines.slice(1).map(line => {
+                            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                            return { Nama: cols[0], Jabatan: cols[1], NomerID: cols[2], Lainnya: cols[3] || '' };
+                        }).filter(e => e.NomerID);
+
+                        if (parsed.length > 0)javascript
+                        {
+                            this.employees = parsed;
+                            localStorage.setItem('employees', JSON.stringify(this.employees));
+                            localStorage.setItem('sheetUrl', this.sheetUrl);
+                            alert(`Berhasil sync ${parsed.length} data pegawai!`);
+                            this.showAdmin = false;
+                        } else {
+                            alert("Format CSV tidak sesuai atau kosong.");
+                        }
+                    } catch (e) {
+                        alert("Gagal mengambil data dari Google Sheet: " + e.message);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
