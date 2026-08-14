@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresensiCloud - Masuk & Keluar</title>
+    <title>PresensiCloud - Smart Attendance System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
@@ -102,21 +102,27 @@
             <button @click="verifyLocationStep()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Lanjutkan ke Scan ID</button>
         </div>
 
-        <!-- ================= STEP 2: SCAN QR / NOMOR ID ================= -->
+        <!-- ================= STEP 2: SCAN QR / INPUT MANUAL NOMERID ================= -->
         <div x-show="step === 'QR'" class="space-y-4">
             <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Scan Barcode / Masukkan ID</h2>
-                <p class="text-xs text-slate-500">Arahkan kamera ke QR Code NomerID Anda</p>
+                <h2 class="font-bold text-base">Scan Barcode / Input Manual ID</h2>
+                <p class="text-xs text-slate-500">Arahkan kamera ke kartu atau ketik NomerID jika gelap/lupa</p>
             </div>
-            <div class="relative w-full h-52 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
+            <div class="relative w-full h-48 bg-slate-200 dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 flex items-center justify-center">
                 <div id="qr-reader" class="w-full h-full"></div>
             </div>
-            <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-center">
-                <p class="text-[11px] text-slate-400">Pegawai terdaftar: <span class="font-bold text-indigo-500" x-text="employees.length"></span> orang (Auto-Sync Cloud)</p>
+            <!-- Input Manual Fallback (Jika Gelap / Lupa Kartu) -->
+            <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <label class="block text-[11px] font-semibold text-slate-400">INPUT MANUAL NOMERID:</label>
+                <div class="flex gap-2">
+                    <input type="text" x-model="manualNipInput" placeholder="Ketik NomerID Anda..." class="flex-1 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button @click="processManualNip()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">Cari ID</button>
+                </div>
+                <p class="text-[10px] text-slate-400 text-center pt-1">Pegawai terdaftar: <span class="font-bold text-indigo-500" x-text="employees.length"></span> orang (Auto-Sync)</p>
             </div>
         </div>
 
-        <!-- ================= STEP 3: FOTO WAJAH (AUTO-CAPTURE) ================= -->
+        <!-- ================= STEP 3: FOTO WAJAH (AUTO-CAPTURE FACE DETECTION) ================= -->
         <div x-show="step === 'FACE'" class="space-y-4">
             <div class="text-center space-y-1">
                 <h2 class="font-bold text-base">Deteksi Wajah Otomatis</h2>
@@ -132,7 +138,7 @@
                     </div>
                 </div>
             </div>
-            <button @click="submitAttendance()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl text-xs font-semibold">Paksa Ambil Foto & Kirim</button>
+            <button @click="submitAttendance()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/20">Ambil Foto & Kirim Sekarang</button>
         </div>
 
         <!-- ================= STEP 4: SUCCESS (3 SECONDS DISPLAY) ================= -->
@@ -181,7 +187,7 @@
             return {
                 darkMode: localStorage.getItem('darkMode') === 'true',
                 step: 'MODE', // MODE -> LOCATION -> QR -> FACE -> VERIFIED
-                attendanceMode: 'masuk', // 'masuk' atau 'keluar'
+                attendanceMode: 'masuk',
                 currentTime: '',
                 
                 // [PENTING] Masukkan URL Web App Google Apps Script Anda di sini:
@@ -190,6 +196,7 @@
                 employees: [],
                 isLoadingDb: true,
                 currentUser: null,
+                manualNipInput: '',
                 attempts: 0,
                 failReason: '',
                 successTime: '',
@@ -200,8 +207,8 @@
                 isDetecting: false,
                 faceStatusText: 'Memuat AI pendeteksi wajah...',
                 
-                officeLat: -10.155707639882744,
-                officeLng: 123.6224151291967,
+                officeLat: -10.156002236158612,
+                officeLng: 123.62247342519191,
 
                 location: {
                     lat: null,
@@ -232,8 +239,11 @@
                     try {
                         if (typeof blazeface !== 'undefined') {
                             this.blazefaceModel = await blazeface.load();
+                            this.faceStatusText = 'AI siap, arahkan wajah ke kamera...';
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        this.faceStatusText = 'Gagal memuat AI, gunakan tombol kirim.';
+                    }
                 },
 
                 checkLocation() {
@@ -282,6 +292,7 @@
                         this.handleFailure(`Lokasi ditolak! Anda berada di luar radius kantor (${this.location.distance.toFixed(1)} meter).`);
                         return;
                     }
+                    // Jika lokasi valid, langsung ke scan QR
                     this.step = 'QR';
                     this.initQRScanner();
                 },
@@ -316,8 +327,18 @@
                         this.step = 'FACE';
                         this.startCameraAndDetect();
                     } else {
-                        this.handleFailure("NomerID barcode tidak terdaftar di database cloud!");
+                        alert("NomerID tidak ditemukan di database cloud!");
                     }
+                },
+
+                processManualNip() {
+                    if (!this.manualNipInput) {
+                        alert("Masukkan NomerID terlebih dahulu!");
+                        return;
+                    }
+                    const cleanId = String(this.manualNipInput).trim();
+                    this.manualNipInput = '';
+                    this.processQR(cleanId);
                 },
 
                 startCameraAndDetect() {
@@ -389,7 +410,7 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                             body: JSON.stringify({
-                                action: this.attendanceMode, // 'masuk' atau 'keluar'
+                                action: this.attendanceMode,
                                 name: this.currentUser.Nama,
                                 nip: this.currentUser.NomerID,
                                 jabatan: this.currentUser.Jabatan || '-',
