@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance System</title>
+    <title>PresensiCloud - Smart Attendance System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
@@ -29,6 +29,25 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         [x-cloak] { display: none !important; }
+
+        /* Animasi Looping Scroll Up Ticker */
+        @keyframes scrollUp {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+        .ticker-wrapper {
+            overflow: hidden;
+            height: 90px;
+            position: relative;
+        }
+        .ticker-track {
+            display: flex;
+            flex-direction: column;
+            animation: scrollUp 10s linear infinite;
+        }
+        .ticker-track:hover {
+            animation-play-state: paused;
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
@@ -105,10 +124,10 @@
             <span class="italic">Verifikasi lokasi & identitas</span>
         </div>
 
-        <!-- ================= STEP 0: PILIH MODE (MASUK / KELUAR) ================= -->
+        <!-- ================= STEP 0: PILIH MODE (MASUK / KELUAR) & TICKER ================= -->
         <div x-show="step === 'MODE'" class="space-y-4 text-center py-2">
             <h2 class="font-bold text-base">Pilih Absensi</h2>
-            <p class="text-xs text-slate-500">Siapkan Barcode / Kartu ID</p>
+            <p class="text-xs text-slate-500">Siapkan Barcode / Kartu ID Anda</p>
             <div class="grid grid-cols-2 gap-4 pt-2">
                 <button @click="selectMode('masuk')" class="p-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 flex flex-col items-center space-y-2 transition-all">
                     <i class="fa-solid fa-right-to-bracket text-2xl"></i>
@@ -119,7 +138,33 @@
                     <span class="font-bold text-sm">Absen Keluar</span>
                 </button>
             </div>
-            <p class="text-[10px] text-slate-400 pt-2">Hubungi <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">ToDek</kbd> untuk Pengaturan Admin</p>
+
+            <!-- LOOPING SCROLL-UP TICKER (Riwayat Absen Berhasil) -->
+            <div class="pt-2 text-left space-y-1.5" x-show="recentLogs.length > 0">
+                <div class="flex items-center space-x-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                    <span>Aktivitas Berhasil Terbaru</span>
+                </div>
+                <div class="ticker-wrapper glass rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-2">
+                    <div class="ticker-track space-y-2">
+                        <!-- Looping item (diduplikasi untuk efek seamless loop) -->
+                        <template x-for="(log, idx) in [...recentLogs, ...recentLogs]" :key="idx">
+                            <div class="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 px-3 py-2 rounded-xl text-xs border border-slate-200/40 dark:border-slate-800/40">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-2 h-2 rounded-full" :class="log.action === 'masuk' ? 'bg-emerald-500' : 'bg-amber-500'"></div>
+                                    <span class="font-bold text-slate-700 dark:text-slate-200" x-text="log.name"></span>
+                                </div>
+                                <div class="flex items-center space-x-2 text-[11px]">
+                                    <span class="font-semibold uppercase" :class="log.action === 'masuk' ? 'text-emerald-500' : 'text-amber-500'" x-text="log.action"></span>
+                                    <span class="text-slate-400 font-mono" x-text="log.time"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-[10px] text-slate-400 pt-1">Tekan <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">Ctrl + Alt + A</kbd> untuk Pengaturan Admin</p>
         </div>
 
         <!-- ================= STEP 1: LOKASI (GEOFENCING UTAMA) ================= -->
@@ -174,7 +219,8 @@
                 <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
             </div>
             <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
-                <video x-ref="videoElement" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <!-- style="transform: scaleX(-1);" membuat efek cermin agar natural -->
+                <video x-ref="videoElement" autoplay playsinline muted style="transform: scaleX(-1);" class="w-full h-full object-cover"></video>
                 <canvas x-ref="canvasElement" class="hidden"></canvas>
                 <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
                     <div class="w-24 h-32 border border-dashed border-indigo-400/70 rounded-xl animate-pulse flex items-center justify-center">
@@ -185,7 +231,7 @@
             <button @click="submitAttendance()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/20">Ambil Foto & Kirim Sekarang</button>
         </div>
 
-        <!-- ================= STEP 4: SUCCESS (3 SECONDS DISPLAY) ================= -->
+        <!-- ================= STEP 4: SUCCESS (5 SECONDS DISPLAY) ================= -->
         <div x-show="step === 'VERIFIED'" class="space-y-6 py-4 text-center">
             <div class="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-emerald-500/20 animate-bounce">
                 <i class="fa-solid fa-circle-check"></i>
@@ -236,10 +282,9 @@
                 currentTime: '',
                 currentDate: '',
                 
-                // Konfigurasi Admin (Disimpan di LocalStorage)
-                gasUrl: localStorage.getItem('gasUrl') || 'https://script.google.com/macros/s/AKfycbxtcIDgEllsn2LqH6qQ9rOlIYPcuGYJJyj97NcbLvBB6G2yP9_-YNUwmj55QBxIEOG19w/exec',
-                officeLat: parseFloat(localStorage.getItem('officeLat')) || -10.156002236158612,
-                officeLng: parseFloat(localStorage.getItem('officeLng')) || 23.62235540799796,
+                gasUrl: localStorage.getItem('gasUrl') || 'MASUKKAN_URL_WEB_APP_ANDA_DISINI',
+                officeLat: parseFloat(localStorage.getItem('officeLat')) || -6.175392,
+                officeLng: parseFloat(localStorage.getItem('officeLng')) || 106.827153,
                 maxRadius: parseInt(localStorage.getItem('maxRadius')) || 100,
                 
                 employees: [],
@@ -255,6 +300,7 @@
                 blazefaceModel: null,
                 isDetecting: false,
                 faceStatusText: 'Memuat AI pendeteksi wajah...',
+                recentLogs: JSON.parse(localStorage.getItem('recent_logs') || '[]'),
 
                 location: {
                     lat: null,
@@ -269,7 +315,6 @@
                     this.fetchCloudDatabase();
                     this.loadFaceModel();
 
-                    // Shortcut Admin: Ctrl + Alt + A
                     window.addEventListener('keydown', (e) => {
                         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
                             this.showAdmin = !this.showAdmin;
@@ -302,7 +347,10 @@
                 async loadFaceModel() {
                     try {
                         if (typeof blazeface !== 'undefined') {
-                            this.blazefaceModel = await blazeface.load();
+                            this.blazefaceModel = await blazeface.load({
+                                maxFaces: 1,
+                                scoreThreshold: 0.5 // Diturunkan agar lebih peka mendeteksi wajah
+                            });
                             this.faceStatusText = 'AI siap, arahkan wajah ke kamera...';
                         }
                     } catch (e) {
@@ -427,7 +475,8 @@
                     if (video && video.readyState === 4 && this.blazefaceModel) {
                         try {
                             const predictions = await this.blazefaceModel.estimateFaces(video, false);
-                            if (predictions.length > 0) {
+                            // Lebih peka: langsung tangkap jika array prediksi terisi
+                            if (predictions && predictions.length > 0) {
                                 this.faceStatusText = "Wajah terdeteksi! Mengirim data...";
                                 this.isDetecting = false;
                                 this.submitAttendance();
@@ -493,13 +542,22 @@
                         console.warn("Kendala jaringan cloud:", e);
                     }
 
+                    // Tambahkan ke log ticker lokal
+                    this.recentLogs.unshift({
+                        name: this.currentUser.Nama,
+                        action: this.attendanceMode,
+                        time: timeStr
+                    });
+                    if (this.recentLogs.length > 10) this.recentLogs.pop(); // Batasi maksimal 10 log terakhir
+                    localStorage.setItem('recent_logs', JSON.stringify(this.recentLogs));
+
                     this.successTime = timeStr;
                     this.step = 'VERIFIED';
                     this.speakIndonesian(`Absen ${this.attendanceMode} atas nama ${this.currentUser.Nama} berhasil tercatat.`);
 
                     setTimeout(() => {
                         this.resetFullFlow();
-                    }, 3000);
+                    }, 5000);
                 },
 
                 handleFailure(reason) {
@@ -544,23 +602,18 @@
                     try {
                         const res = await fetch(this.gasUrl);
                         const result = await res.json();
-        
-                        // Format baru menerima objek { employees: [...], config: {...} }
                         if (result && result.employees) {
                             this.employees = result.employees;
-            
-                            // Set koordinat kantor otomatis dari Cloud Spreadsheet
                             if (result.config) {
                                 this.officeLat = result.config.officeLat;
                                 this.officeLng = result.config.officeLng;
                                 this.maxRadius = result.config.maxRadius;
                             }
                         } else if (Array.isArray(result)) {
-                            // Fallback jika format lama
                             this.employees = result;
                         }
                     } catch(e) {
-                        console.error("Gagal mengambil data database cloud:", e);
+                        console.error("Gagal mengambil data database otomatis:", e);
                     } finally {
                         this.isLoadingDb = false;
                     }
