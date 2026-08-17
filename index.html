@@ -10,11 +10,9 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- TensorFlow.js & BlazeFace CDN untuk Auto-Capture Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
     <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         .glass {
             background: rgba(255, 255, 255, 0.85);
@@ -48,6 +46,14 @@
         .ticker-track:hover {
             animation-play-state: paused;
         }
+        /* Animasi detak angka countdown */
+        .animate-beat {
+            animation: beat 1s infinite;
+        }
+        @keyframes beat {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
@@ -71,16 +77,16 @@
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">LATITUDE KANTOR</label>
-                    <input type="number" step="any" x-model.number="officeLat" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="-6.175392">
+                    <input type="number" step="any" x-model.number="officeLat" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">LONGITUDE KANTOR</label>
-                    <input type="number" step="any" x-model.number="officeLng" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="106.827153">
+                    <input type="number" step="any" x-model.number="officeLng" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-slate-500 mb-1">MAKSIMAL RADIUS (Meter)</label>
-                <input type="number" x-model.number="maxRadius" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="100">
+                <input type="number" x-model.number="maxRadius" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
             <div class="flex space-x-3 pt-2">
                 <button @click="saveAdminConfig()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Simpan & Sinkronisasi</button>
@@ -139,11 +145,11 @@
                 </button>
             </div>
 
-            <!-- LOOPING SCROLL-UP TICKER (Riwayat Absen Berhasil) -->
-            <div class="pt-2 text-left space-y-1.5" x-show="recentLogs.length > 0">
+            <!-- LOOPING SCROLL-UP TICKER (Riwayat Absen Masuk Aktif) -->
+            <div class="pt-2 text-left space-y-1.5" x-show="recentLogs.length > 0" x-transition>
                 <div class="flex items-center space-x-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                    <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
-                    <span>Aktivitas Berhasil Terbaru</span>
+                    <i class="fa-solid fa-users text-indigo-500"></i>
+                    <span>Pegawai Aktif (Belum Pulang)</span>
                 </div>
                 <div class="ticker-wrapper glass rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-2">
                     <div class="ticker-track space-y-2">
@@ -151,11 +157,11 @@
                         <template x-for="(log, idx) in [...recentLogs, ...recentLogs]" :key="idx">
                             <div class="flex items-center justify-between bg-white/50 dark:bg-slate-900/50 px-3 py-2 rounded-xl text-xs border border-slate-200/40 dark:border-slate-800/40">
                                 <div class="flex items-center space-x-2">
-                                    <div class="w-2 h-2 rounded-full" :class="log.action === 'masuk' ? 'bg-emerald-500' : 'bg-amber-500'"></div>
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
                                     <span class="font-bold text-slate-700 dark:text-slate-200" x-text="log.name"></span>
                                 </div>
                                 <div class="flex items-center space-x-2 text-[11px]">
-                                    <span class="font-semibold uppercase" :class="log.action === 'masuk' ? 'text-emerald-500' : 'text-amber-500'" x-text="log.action"></span>
+                                    <span class="font-semibold uppercase text-emerald-500">MASUK</span>
                                     <span class="text-slate-400 font-mono" x-text="log.time"></span>
                                 </div>
                             </div>
@@ -211,27 +217,28 @@
             </div>
         </div>
 
-        <!-- ================= STEP 3: FOTO WAJAH (AUTO-CAPTURE FACE DETECTION) ================= -->
+        <!-- ================= STEP 3: FOTO WAJAH (AUTO-COUNTDOWN 5 DETIK) ================= -->
         <div x-show="step === 'FACE'" class="space-y-4">
             <div class="text-center space-y-1">
-                <h2 class="font-bold text-base">Deteksi Wajah Otomatis</h2>
-                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText">Mencari wajah di depan kamera...</p>
+                <h2 class="font-bold text-base">Pengambilan Foto Bukti</h2>
+                <p class="text-xs text-indigo-600 font-semibold" x-text="faceStatusText"></p>
                 <p class="text-[11px] text-slate-400" x-text="'Pegawai: ' + (currentUser ? currentUser.Nama : '')"></p>
             </div>
-            <div class="relative w-full h-48 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
-                <!-- style="transform: scaleX(-1);" membuat efek cermin agar natural -->
+            <div class="relative w-full h-56 bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-300 dark:border-slate-700">
+                <!-- Video dengan efek cermin agar natural -->
                 <video x-ref="videoElement" autoplay playsinline muted style="transform: scaleX(-1);" class="w-full h-full object-cover"></video>
                 <canvas x-ref="canvasElement" class="hidden"></canvas>
-                <div class="absolute inset-0 border-2 border-indigo-500/40 rounded-2xl pointer-events-none flex items-center justify-center">
-                    <div class="w-24 h-32 border border-dashed border-indigo-400/70 rounded-xl animate-pulse flex items-center justify-center">
-                        <span class="text-[9px] text-indigo-300 bg-black/40 px-2 py-0.5 rounded-full">Posisikan Wajah</span>
-                    </div>
+                
+                <!-- Overlay Angka Hitung Mundur Raksasa -->
+                <div x-show="countdownValue > 0" class="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+                    <span class="text-7xl font-extrabold text-white drop-shadow-2xl animate-beat" x-text="countdownValue"></span>
                 </div>
             </div>
-            <button @click="submitAttendance()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/20">Ambil Foto & Kirim Sekarang</button>
+            <!-- Tombol manual (jika pengguna ingin mempercepat tanpa menunggu 5 detik) -->
+            <button @click="submitAttendance()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all">Jepret Sekarang (Lewati Waktu)</button>
         </div>
 
-        <!-- ================= STEP 4: SUCCESS (5 SECONDS DISPLAY) ================= -->
+        <!-- ================= STEP 4: SUCCESS (DISPLAY INFO) ================= -->
         <div x-show="step === 'VERIFIED'" class="space-y-6 py-4 text-center">
             <div class="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-emerald-500/20 animate-bounce">
                 <i class="fa-solid fa-circle-check"></i>
@@ -297,9 +304,12 @@
                 photoSnapshot: null,
                 cameraStream: null,
                 html5QrCode: null,
-                blazefaceModel: null,
-                isDetecting: false,
-                faceStatusText: 'Memuat AI pendeteksi wajah...',
+                
+                // Variabel Countdown (No-AI)
+                countdownValue: 5,
+                countdownTimer: null,
+                faceStatusText: 'Bersiap, mengambil foto otomatis...',
+                
                 recentLogs: JSON.parse(localStorage.getItem('recent_logs') || '[]'),
 
                 location: {
@@ -313,7 +323,6 @@
                     this.updateClock();
                     setInterval(() => this.updateClock(), 1000);
                     this.fetchCloudDatabase();
-                    this.loadFaceModel();
 
                     window.addEventListener('keydown', (e) => {
                         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
@@ -342,20 +351,6 @@
                     this.fetchCloudDatabase();
                     alert("Pengaturan Admin (Cloud & Lokasi) berhasil disimpan!");
                     this.showAdmin = false;
-                },
-
-                async loadFaceModel() {
-                    try {
-                        if (typeof blazeface !== 'undefined') {
-                            this.blazefaceModel = await blazeface.load({
-                                maxFaces: 1,
-                                scoreThreshold: 0.5 // Diturunkan agar lebih peka mendeteksi wajah
-                            });
-                            this.faceStatusText = 'AI siap, arahkan wajah ke kamera...';
-                        }
-                    } catch (e) {
-                        this.faceStatusText = 'Gagal memuat AI, gunakan tombol kirim.';
-                    }
                 },
 
                 checkLocation() {
@@ -436,7 +431,7 @@
                             try { this.html5QrCode.stop(); } catch (e) {}
                         }
                         this.step = 'FACE';
-                        this.startCameraAndDetect();
+                        this.startCameraAndCountdown();
                     } else {
                         alert("NomerID tidak ditemukan di database cloud!");
                     }
@@ -452,7 +447,8 @@
                     this.processQR(cleanId);
                 },
 
-                startCameraAndDetect() {
+                // --- ROMBAK TOTAL: AI Dihapus, diganti Auto Countdown 5 Detik ---
+                startCameraAndCountdown() {
                     setTimeout(async () => {
                         try {
                             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
@@ -460,40 +456,30 @@
                             if (this.$refs.videoElement) {
                                 this.$refs.videoElement.srcObject = stream;
                             }
-                            this.isDetecting = true;
-                            this.runAutoCaptureLoop();
+                            this.startCountdownTimer();
                         } catch (err) {
                             this.faceStatusText = "Akses kamera depan ditolak.";
                         }
                     }, 200);
                 },
 
-                async runAutoCaptureLoop() {
-                    if (this.step !== 'FACE' || !this.isDetecting) return;
-
-                    const video = this.$refs.videoElement;
-                    if (video && video.readyState === 4 && this.blazefaceModel) {
-                        try {
-                            const predictions = await this.blazefaceModel.estimateFaces(video, false);
-                            // Lebih peka: langsung tangkap jika array prediksi terisi
-                            if (predictions && predictions.length > 0) {
-                                this.faceStatusText = "Wajah terdeteksi! Mengirim data...";
-                                this.isDetecting = false;
-                                this.submitAttendance();
-                                return;
-                            } else {
-                                this.faceStatusText = "Posisikan wajah di depan kamera...";
-                            }
-                        } catch (e) {}
-                    }
-
-                    if (this.isDetecting) {
-                        requestAnimationFrame(() => this.runAutoCaptureLoop());
-                    }
+                startCountdownTimer() {
+                    this.countdownValue = 5;
+                    this.faceStatusText = `Bersiap, mengambil foto otomatis dalam ${this.countdownValue} detik...`;
+                    
+                    this.countdownTimer = setInterval(() => {
+                        this.countdownValue--;
+                        if (this.countdownValue > 0) {
+                            this.faceStatusText = `Bersiap, mengambil foto otomatis dalam ${this.countdownValue} detik...`;
+                        } else {
+                            clearInterval(this.countdownTimer);
+                            this.submitAttendance();
+                        }
+                    }, 1000);
                 },
 
                 stopCamera() {
-                    this.isDetecting = false;
+                    if (this.countdownTimer) clearInterval(this.countdownTimer);
                     if (this.cameraStream) {
                         this.cameraStream.getTracks().forEach(track => track.stop());
                     }
@@ -508,6 +494,9 @@
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                         const ctx = canvas.getContext('2d');
+                        // Karena video dicerminkan via CSS, kita balik juga saat menggambar di canvas agar hasilnya tidak terbalik
+                        ctx.translate(canvas.width, 0);
+                        ctx.scale(-1, 1);
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         this.photoSnapshot = canvas.toDataURL('image/png');
                     } else {
@@ -542,13 +531,18 @@
                         console.warn("Kendala jaringan cloud:", e);
                     }
 
-                    // Tambahkan ke log ticker lokal
-                    this.recentLogs.unshift({
-                        name: this.currentUser.Nama,
-                        action: this.attendanceMode,
-                        time: timeStr
-                    });
-                    if (this.recentLogs.length > 10) this.recentLogs.pop(); // Batasi maksimal 10 log terakhir
+                    // --- LOGIKA TICKER: Tambah Jika Masuk, Hapus Jika Keluar ---
+                    if (this.attendanceMode === 'masuk') {
+                        this.recentLogs.unshift({
+                            name: this.currentUser.Nama,
+                            nip: this.currentUser.NomerID,
+                            time: timeStr
+                        });
+                        if (this.recentLogs.length > 15) this.recentLogs.pop(); // Simpan max 15 orang
+                    } else if (this.attendanceMode === 'keluar') {
+                        // Hilangkan nama dari daftar Ticker jika sudah Absen Keluar
+                        this.recentLogs = this.recentLogs.filter(log => String(log.nip) !== String(this.currentUser.NomerID));
+                    }
                     localStorage.setItem('recent_logs', JSON.stringify(this.recentLogs));
 
                     this.successTime = timeStr;
@@ -557,7 +551,7 @@
 
                     setTimeout(() => {
                         this.resetFullFlow();
-                    }, 5000);
+                    }, 4000);
                 },
 
                 handleFailure(reason) {
@@ -594,7 +588,7 @@
                     this.currentUser = null;
                     this.photoSnapshot = null;
                     this.attempts = 0;
-                    this.isDetecting = false;
+                    if (this.countdownTimer) clearInterval(this.countdownTimer);
                 },
 
                 async fetchCloudDatabase() {
