@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PresensiCloud - Smart Attendance System</title>
+    <title>Smart Attendance System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
@@ -119,7 +119,7 @@
                     <span class="font-bold text-sm">Absen Keluar</span>
                 </button>
             </div>
-            <p class="text-[10px] text-slate-400 pt-2">Tekan <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">Ctrl + Alt + A</kbd> untuk Pengaturan Admin</p>
+            <p class="text-[10px] text-slate-400 pt-2">Hubungi <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">ToDek</kbd> untuk Pengaturan Admin</p>
         </div>
 
         <!-- ================= STEP 1: LOKASI (GEOFENCING UTAMA) ================= -->
@@ -237,9 +237,9 @@
                 currentDate: '',
                 
                 // Konfigurasi Admin (Disimpan di LocalStorage)
-                gasUrl: localStorage.getItem('gasUrl') || 'MASUKKAN_URL_WEB_APP_ANDA_DISINI',
-                officeLat: parseFloat(localStorage.getItem('officeLat')) || -6.175392,
-                officeLng: parseFloat(localStorage.getItem('officeLng')) || 106.827153,
+                gasUrl: localStorage.getItem('gasUrl') || 'https://script.google.com/macros/s/AKfycbxtcIDgEllsn2LqH6qQ9rOlIYPcuGYJJyj97NcbLvBB6G2yP9_-YNUwmj55QBxIEOG19w/exec',
+                officeLat: parseFloat(localStorage.getItem('officeLat')) || -10.156002236158612,
+                officeLng: parseFloat(localStorage.getItem('officeLng')) || 23.62235540799796,
                 maxRadius: parseInt(localStorage.getItem('maxRadius')) || 100,
                 
                 employees: [],
@@ -543,12 +543,24 @@
                     this.isLoadingDb = true;
                     try {
                         const res = await fetch(this.gasUrl);
-                        const data = await res.json();
-                        if (Array.isArray(data) && data.length > 0) {
-                            this.employees = data;
+                        const result = await res.json();
+        
+                        // Format baru menerima objek { employees: [...], config: {...} }
+                        if (result && result.employees) {
+                            this.employees = result.employees;
+            
+                            // Set koordinat kantor otomatis dari Cloud Spreadsheet
+                            if (result.config) {
+                                this.officeLat = result.config.officeLat;
+                                this.officeLng = result.config.officeLng;
+                                this.maxRadius = result.config.maxRadius;
+                            }
+                        } else if (Array.isArray(result)) {
+                            // Fallback jika format lama
+                            this.employees = result;
                         }
                     } catch(e) {
-                        console.error("Gagal mengambil data database otomatis:", e);
+                        console.error("Gagal mengambil data database cloud:", e);
                     } finally {
                         this.isLoadingDb = false;
                     }
