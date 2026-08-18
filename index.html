@@ -585,7 +585,7 @@
 
                     this.successTime = timeStr;
                     this.step = 'VERIFIED';
-                    this.speakIndonesian(`Absen ${this.attendanceMode} atas nama ${this.currentUser.Nama} berhasil tercatat.`);
+                    this.speakIndonesian(`Absen ${this.attendanceMode} atas nama ${this.currentUser.Nama} berhasil.`);
 
                     const resetDelay = this.isKioskMode ? 2000 : 4000;
                     setTimeout(() => { this.resetFullFlow(); }, resetDelay);
