@@ -10,46 +10,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        .glass {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .dark .glass {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .dark .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
         [x-cloak] { display: none !important; }
 
-        /* Animasi Looping Scroll Up Ticker */
-        @keyframes scrollUp {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(-50%); }
-        }
-        .ticker-wrapper {
-            overflow: hidden;
-            height: 90px;
-            position: relative;
-        }
-        .ticker-track {
-            display: flex;
-            flex-direction: column;
-            animation: scrollUp 10s linear infinite;
-        }
-        .ticker-track:hover {
-            animation-play-state: paused;
-        }
-        /* Animasi detak angka countdown */
-        .animate-beat {
-            animation: beat 1s infinite;
-        }
-        @keyframes beat {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
-        }
+        @keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+        .ticker-wrapper { overflow: hidden; height: 90px; position: relative; }
+        .ticker-track { display: flex; flex-direction: column; animation: scrollUp 10s linear infinite; }
+        .ticker-track:hover { animation-play-state: paused; }
+        .animate-beat { animation: beat 1s infinite; }
+        @keyframes beat { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.8; } }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
@@ -59,7 +29,7 @@
             <div class="flex justify-between items-center">
                 <h2 class="text-lg font-bold flex items-center space-x-2">
                     <i class="fa-solid fa-gear text-indigo-600"></i>
-                    <span>Admin Configuration (Cloud & Lokasi)</span>
+                    <span>Admin Configuration</span>
                 </h2>
                 <button @click="showAdmin = false" class="text-slate-400 hover:text-slate-600">
                     <i class="fa-solid fa-xmark text-xl"></i>
@@ -83,11 +53,17 @@
                 <label class="block text-xs font-semibold text-slate-500 mb-1">MAKSIMAL RADIUS (Meter)</label>
                 <input type="number" x-model.number="maxRadius" class="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
-            <div class="flex space-x-3 pt-2">
-                <button @click="saveAdminConfig()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Simpan & Sinkronisasi</button>
-                <button @click="showAdmin = false" class="px-5 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-semibold">Tutup</button>
+            <div class="flex items-center space-x-3 p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+                <input type="checkbox" id="kioskMode" x-model="isKioskMode" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                <label for="kioskMode" class="text-xs font-bold text-indigo-700 dark:text-indigo-400 cursor-pointer">
+                    Jadikan Perangkat Kantor Utama (Kiosk Mode)<br>
+                    <span class="font-normal text-[10px] text-slate-500">Bypass cek GPS agar antrean lebih cepat (Karena perangkat fisik ada di kantor).</span>
+                </label>
             </div>
-            <p class="text-xs text-slate-400 text-center">Pegawai Terdaftar & Aktif di Cache: <span class="font-bold text-indigo-500" x-text="employees.length"></span> orang</p>
+
+            <div class="flex space-x-3 pt-2">
+                <button @click="saveAdminConfig()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Simpan Konfigurasi</button>
+            </div>
         </div>
     </div>
 
@@ -106,7 +82,7 @@
             <div class="flex items-center space-x-2">
                 <span class="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2.5 py-1 rounded-full font-medium flex items-center space-x-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span x-text="isLoadingDb ? 'Syncing...' : 'Cloud Connected'"></span>
+                    <span x-text="isLoadingDb ? 'Syncing...' : (isKioskMode ? 'Kiosk Mode' : 'Cloud Connected')"></span>
                 </span>
             </div>
         </div>
@@ -114,11 +90,6 @@
         <div class="glass bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl text-center space-y-1 border border-indigo-500/20 shadow-inner">
             <div class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400" x-text="currentDate"></div>
             <div class="text-4xl md:text-5xl font-extrabold tracking-tight font-mono text-slate-900 dark:text-slate-100" x-text="currentTime"></div>
-        </div>
-
-        <div x-show="attempts > 0 && step !== 'FAILED'" class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-xl text-xs flex justify-between items-center">
-            <span>Sisa Percobaan: <strong x-text="3 - attempts"></strong> dari 3</span>
-            <span class="italic">Verifikasi lokasi & identitas</span>
         </div>
 
         <div x-show="step === 'MODE'" class="space-y-4 text-center py-2">
@@ -157,7 +128,13 @@
                     </div>
                 </div>
             </div>
-            <p class="text-[10px] text-slate-400 pt-1">Kontak <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">ToDek</kbd> untuk approval / kendala lain</p>
+            
+            <div class="pt-2">
+                <button @click="openAdminPanel()" class="mx-auto flex items-center justify-center space-x-1.5 text-[11px] text-slate-400 hover:text-indigo-500 transition-colors px-3 py-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-lock text-[10px]"></i>
+                    <span>Admin & Kiosk Mode</span>
+                </button>
+            </div>
         </div>
 
         <div x-show="step === 'LOCATION'" class="space-y-4 text-center py-2">
@@ -172,7 +149,7 @@
             </div>
             <div class="space-y-1">
                 <h2 class="font-bold text-base">Verifikasi Lokasi Kantor</h2>
-                <p class="text-xs text-slate-500">Sistem mendeteksi posisi GPS Anda</p>
+                <p class="text-xs text-slate-500" x-text="isKioskMode ? 'Perangkat Kantor (Bypass GPS)' : 'Sistem mendeteksi posisi GPS Anda'"></p>
             </div>
             <div class="bg-slate-200/50 dark:bg-slate-900/50 p-4 rounded-2xl text-xs space-y-2 border border-slate-300 dark:border-slate-700 text-left">
                 <div class="flex justify-between">
@@ -211,12 +188,10 @@
             </div>
             <div class="flex flex-col gap-3 pt-2">
                 <button @click="retryScanner()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-camera-rotate"></i>
-                    <span>Coba Pindai / Masukkan Lagi</span>
+                    <i class="fa-solid fa-camera-rotate"></i><span>Coba Pindai / Masukkan Lagi</span>
                 </button>
                 <button @click="goToRegistration()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>Registrasi Pengguna Baru</span>
+                    <i class="fa-solid fa-user-plus"></i><span>Registrasi Pengguna Baru</span>
                 </button>
             </div>
         </div>
@@ -289,7 +264,7 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px]">
                     <div><span class="text-slate-400">Waktu:</span> <strong x-text="successTime"></strong></div>
-                    <div><span class="text-slate-400">Jarak GPS:</span> <strong x-text="location.distance?.toFixed(1) + ' m'"></strong></div>
+                    <div><span class="text-slate-400">Jarak GPS:</span> <strong x-text="isKioskMode ? 'Pusat' : (location.distance?.toFixed(1) + ' m')"></strong></div>
                 </div>
             </div>
         </div>
@@ -321,6 +296,7 @@
                 officeLat: parseFloat(localStorage.getItem('officeLat')) || -6.175392,
                 officeLng: parseFloat(localStorage.getItem('officeLng')) || 106.827153,
                 maxRadius: parseInt(localStorage.getItem('maxRadius')) || 100,
+                isKioskMode: localStorage.getItem('isKioskMode') === 'true',
                 
                 employees: [],
                 isLoadingDb: true,
@@ -333,13 +309,11 @@
                 cameraStream: null,
                 html5QrCode: null,
                 
-                // Variabel Countdown 
                 countdownValue: 5,
                 countdownTimer: null,
                 faceStatusText: 'Bersiap, mengambil foto otomatis...',
                 
-                // Variabel Registrasi (Input Mandiri)
-                tempUnrecognizedNip: '', // Menyimpan ID tak dikenal sementara
+                tempUnrecognizedNip: '', 
                 registerNip: '',
                 registerName: '',
                 registerJabatan: '',
@@ -347,21 +321,17 @@
                 
                 recentLogs: JSON.parse(localStorage.getItem('recent_logs') || '[]'),
 
-                location: {
-                    lat: null,
-                    lng: null,
-                    distance: null,
-                    statusText: 'Mendeteksi posisi GPS...'
-                },
+                location: { lat: null, lng: null, distance: null, statusText: 'Mendeteksi posisi GPS...' },
 
                 init() {
                     this.updateClock();
                     setInterval(() => this.updateClock(), 1000);
                     this.fetchCloudDatabase();
 
+                    // Shortcut Keyboard (Hidden Backdoor untuk PC)
                     window.addEventListener('keydown', (e) => {
                         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
-                            this.showAdmin = !this.showAdmin;
+                            this.openAdminPanel(); // Dibuat meminta password juga agar aman
                         }
                     });
                 },
@@ -378,17 +348,35 @@
                     this.checkLocation();
                 },
 
+                // FITUR BARU: Membuka Admin Panel dengan Password
+                openAdminPanel() {
+                    const pass = prompt("Masukkan Password Admin (Default: 123456):");
+                    if (pass === "123456") {
+                        this.showAdmin = true;
+                    } else if (pass !== null) {
+                        alert("Password Salah! Akses ditolak.");
+                    }
+                },
+
                 saveAdminConfig() {
                     localStorage.setItem('gasUrl', this.gasUrl);
                     localStorage.setItem('officeLat', this.officeLat);
                     localStorage.setItem('officeLng', this.officeLng);
                     localStorage.setItem('maxRadius', this.maxRadius);
+                    localStorage.setItem('isKioskMode', this.isKioskMode);
                     this.fetchCloudDatabase();
-                    alert("Pengaturan Admin (Cloud & Lokasi) berhasil disimpan!");
+                    alert("Pengaturan Admin (Cloud & Kiosk) berhasil disimpan!");
                     this.showAdmin = false;
                 },
 
                 checkLocation() {
+                    if (this.isKioskMode) {
+                        this.location.distance = 0;
+                        this.location.statusText = "Aman! Mode Perangkat Kantor Aktif.";
+                        setTimeout(() => this.verifyLocationStep(), 300);
+                        return;
+                    }
+
                     if (!navigator.geolocation) {
                         this.location.distance = 10;
                         this.location.statusText = "GPS tidak didukung, menggunakan mode default aman.";
@@ -423,7 +411,7 @@
                 },
 
                 verifyLocationStep() {
-                    if (this.location.distance !== null && this.location.distance > this.maxRadius) {
+                    if (!this.isKioskMode && this.location.distance !== null && this.location.distance > this.maxRadius) {
                         this.handleFailure(`Lokasi ditolak! Anda berada di luar radius kantor (${this.location.distance.toFixed(1)} meter). Maksimal ${this.maxRadius} meter.`);
                         return;
                     }
@@ -457,7 +445,6 @@
                         this.step = 'FACE';
                         this.startCameraAndCountdown();
                     } else {
-                        // --- PEMBARUAN: Jika tidak ditemukan, buka Menu Opsi Pilihan Terlebih Dahulu ---
                         if (this.html5QrCode) { try { this.html5QrCode.stop(); } catch (e) {} }
                         this.tempUnrecognizedNip = cleanId;
                         this.step = 'ID_NOT_FOUND_OPTION';
@@ -474,13 +461,11 @@
                     this.processQR(cleanId);
                 },
 
-                // Fungsi tombol Coba Lagi dari Menu Pilihan
                 retryScanner() {
                     this.step = 'QR';
                     this.initQRScanner();
                 },
 
-                // Fungsi tombol Registrasi dari Menu Pilihan
                 goToRegistration() {
                     this.registerNip = this.tempUnrecognizedNip;
                     this.step = 'REGISTER';
@@ -496,25 +481,13 @@
                         const response = await fetch(this.gasUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                            body: JSON.stringify({
-                                action: 'register',
-                                name: this.registerName,
-                                nip: this.registerNip,
-                                jabatan: this.registerJabatan
-                            })
+                            body: JSON.stringify({ action: 'register', name: this.registerName, nip: this.registerNip, jabatan: this.registerJabatan })
                         });
                         const result = await response.json();
-                        
-                        if (result.status === 'success') {
-                            alert(result.message);
-                            this.resetFullFlow();
-                        } else {
-                            alert(result.message);
-                            this.resetFullFlow();
-                        }
+                        alert(result.message);
+                        this.resetFullFlow();
                     } catch (e) {
                         alert("Gagal menghubungi server. Pastikan internet Anda stabil.");
-                    } finally {
                         this.isRegistering = false;
                     }
                 },
@@ -586,7 +559,7 @@
                                 jabatan: this.currentUser.Jabatan || '-',
                                 date: dateStr,
                                 time: timeStr,
-                                distance: this.location.distance.toFixed(1)
+                                distance: this.isKioskMode ? 0 : this.location.distance.toFixed(1)
                             })
                         });
                         
@@ -610,7 +583,8 @@
                     this.step = 'VERIFIED';
                     this.speakIndonesian(`Absen ${this.attendanceMode} atas nama ${this.currentUser.Nama} berhasil tercatat.`);
 
-                    setTimeout(() => { this.resetFullFlow(); }, 4000);
+                    const resetDelay = this.isKioskMode ? 2000 : 4000;
+                    setTimeout(() => { this.resetFullFlow(); }, resetDelay);
                 },
 
                 handleFailure(reason) {
