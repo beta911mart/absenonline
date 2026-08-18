@@ -328,10 +328,9 @@
                     setInterval(() => this.updateClock(), 1000);
                     this.fetchCloudDatabase();
 
-                    // Shortcut Keyboard (Hidden Backdoor untuk PC)
                     window.addEventListener('keydown', (e) => {
                         if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'a') {
-                            this.openAdminPanel(); // Dibuat meminta password juga agar aman
+                            this.openAdminPanel();
                         }
                     });
                 },
@@ -348,7 +347,6 @@
                     this.checkLocation();
                 },
 
-                // FITUR BARU: Membuka Admin Panel dengan Password
                 openAdminPanel() {
                     const pass = prompt("Masukkan Password Admin (Default: 123456):");
                     if (pass === "123456") {
@@ -571,11 +569,17 @@
                         }
                     } catch(e) {}
 
+                    // --- PERBAIKAN LOGIKA TICKER: HILANG SAAT ABSEN KELUAR ---
+                    const currentNipStr = String(this.currentUser.NomerID).trim();
+
                     if (this.attendanceMode === 'masuk') {
-                        this.recentLogs.unshift({ name: this.currentUser.Nama, nip: this.currentUser.NomerID, time: timeStr });
+                        // Tambah ke daftar jika belum ada, atau update waktunya
+                        this.recentLogs = this.recentLogs.filter(log => String(log.nip).trim() !== currentNipStr);
+                        this.recentLogs.unshift({ name: this.currentUser.Nama, nip: currentNipStr, time: timeStr });
                         if (this.recentLogs.length > 15) this.recentLogs.pop();
                     } else if (this.attendanceMode === 'keluar') {
-                        this.recentLogs = this.recentLogs.filter(log => String(log.nip) !== String(this.currentUser.NomerID));
+                        // Secara pasti menghapus nama dari daftar ticker berdasarkan NIP
+                        this.recentLogs = this.recentLogs.filter(log => String(log.nip).trim() !== currentNipStr);
                     }
                     localStorage.setItem('recent_logs', JSON.stringify(this.recentLogs));
 
