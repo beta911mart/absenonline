@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PresensiCloud - Smart Attendance System</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- HTML5 QR Code Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -58,7 +54,6 @@
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- HIDDEN ADMIN CONFIG (Shortcut: Ctrl + Alt + A) -->
     <div x-show="showAdmin" x-cloak class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="glass w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-4">
             <div class="flex justify-between items-center">
@@ -96,10 +91,8 @@
         </div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
     <div class="w-full max-w-md glass rounded-3xl shadow-2xl overflow-hidden border border-slate-200/60 dark:border-slate-800/60 p-6 space-y-6">
 
-        <!-- Header Status Bar -->
         <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center space-x-2">
                 <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
@@ -118,19 +111,16 @@
             </div>
         </div>
 
-        <!-- JUMBO CLOCK & DATE CONTAINER -->
         <div class="glass bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-2xl text-center space-y-1 border border-indigo-500/20 shadow-inner">
             <div class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400" x-text="currentDate"></div>
             <div class="text-4xl md:text-5xl font-extrabold tracking-tight font-mono text-slate-900 dark:text-slate-100" x-text="currentTime"></div>
         </div>
 
-        <!-- ATTEMPT WARNING BANNER -->
         <div x-show="attempts > 0 && step !== 'FAILED'" class="bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 p-3 rounded-xl text-xs flex justify-between items-center">
             <span>Sisa Percobaan: <strong x-text="3 - attempts"></strong> dari 3</span>
             <span class="italic">Verifikasi lokasi & identitas</span>
         </div>
 
-        <!-- ================= STEP 0: PILIH MODE (MASUK / KELUAR) ================= -->
         <div x-show="step === 'MODE'" class="space-y-4 text-center py-2">
             <h2 class="font-bold text-base">Pilih Absensi</h2>
             <p class="text-xs text-slate-500">Siapkan Barcode / Kartu ID Anda</p>
@@ -145,7 +135,6 @@
                 </button>
             </div>
 
-            <!-- LOOPING SCROLL-UP TICKER -->
             <div class="pt-2 text-left space-y-1.5" x-show="recentLogs.length > 0" x-transition>
                 <div class="flex items-center space-x-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
                     <i class="fa-solid fa-users text-indigo-500"></i>
@@ -168,10 +157,9 @@
                     </div>
                 </div>
             </div>
-            <p class="text-[10px] text-slate-400 pt-1">Hubungi <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">ToDek</kbd> untuk approval dll</p>
+            <p class="text-[10px] text-slate-400 pt-1">Kontak <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">ToDek</kbd> untuk approval / kendala lain</p>
         </div>
 
-        <!-- ================= STEP 1: LOKASI ================= -->
         <div x-show="step === 'LOCATION'" class="space-y-4 text-center py-2">
             <div class="flex items-center justify-between">
                 <button @click="step = 'MODE'" class="text-xs text-indigo-600 font-semibold flex items-center space-x-1">
@@ -196,7 +184,6 @@
             <button @click="verifyLocationStep()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20">Lanjutkan ke Scan ID</button>
         </div>
 
-        <!-- ================= STEP 2: SCAN QR ================= -->
         <div x-show="step === 'QR'" class="space-y-4">
             <div class="text-center space-y-1">
                 <h2 class="font-bold text-base">Scan Barcode / Input Manual ID</h2>
@@ -211,18 +198,36 @@
                     <input type="text" x-model="manualNipInput" placeholder="Ketik NomerID Anda..." class="flex-1 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <button @click="processManualNip()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">Cari ID</button>
                 </div>
-                <p class="text-[10px] text-slate-400 text-center pt-1">Jika NomerID tidak terdaftar, formulir Registrasi akan otomatis terbuka.</p>
             </div>
         </div>
 
-        <!-- ================= STEP 2.5: REGISTER MANDIRI (BARU) ================= -->
-        <div x-show="step === 'REGISTER'" class="space-y-4 text-center py-2">
+        <div x-show="step === 'ID_NOT_FOUND_OPTION'" class="space-y-6 text-center py-4" x-cloak>
+            <div class="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-amber-500/20">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-base font-bold text-slate-800 dark:text-slate-100">NomerID Tidak Terdaftar</h2>
+                <p class="text-xs text-slate-500 leading-relaxed">Nomer ID <strong class="font-mono text-indigo-600 dark:text-indigo-400" x-text="tempUnrecognizedNip"></strong> tidak ditemukan atau statusnya masih ditangguhkan oleh Admin.</p>
+            </div>
+            <div class="flex flex-col gap-3 pt-2">
+                <button @click="retryScanner()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-camera-rotate"></i>
+                    <span>Coba Pindai / Masukkan Lagi</span>
+                </button>
+                <button @click="goToRegistration()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Registrasi Pengguna Baru</span>
+                </button>
+            </div>
+        </div>
+
+        <div x-show="step === 'REGISTER'" class="space-y-4 text-center py-2" x-cloak>
             <div class="w-16 h-16 bg-indigo-500/10 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-3xl border border-indigo-500/20">
                 <i class="fa-solid fa-user-plus"></i>
             </div>
             <div class="space-y-1">
                 <h2 class="font-bold text-base">Registrasi Pengguna Baru</h2>
-                <p class="text-xs text-slate-500">NomerID tidak dikenali. Silakan ajukan pendaftaran mandiri.</p>
+                <p class="text-xs text-slate-500">Silakan lengkapi formulir pengajuan pendaftaran mandiri.</p>
             </div>
             <div class="space-y-3 text-left p-4 bg-slate-200/50 dark:bg-slate-900/50 rounded-2xl border border-slate-300 dark:border-slate-700">
                 <div>
@@ -243,11 +248,10 @@
                     <span x-show="!isRegistering">Kirim Pendaftaran</span>
                     <span x-show="isRegistering"><i class="fa-solid fa-spinner animate-spin"></i> Mengirim...</span>
                 </button>
-                <button @click="resetFullFlow()" class="px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all">Batal</button>
+                <button @click="step = 'ID_NOT_FOUND_OPTION'" class="px-5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all">Kembali</button>
             </div>
         </div>
 
-        <!-- ================= STEP 3: FOTO WAJAH ================= -->
         <div x-show="step === 'FACE'" class="space-y-4">
             <div class="text-center space-y-1">
                 <h2 class="font-bold text-base">Pengambilan Foto Bukti</h2>
@@ -265,7 +269,6 @@
             <button @click="submitAttendance()" class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 py-3 rounded-xl text-xs font-bold transition-all">Jepret Sekarang (Lewati Waktu)</button>
         </div>
 
-        <!-- ================= STEP 4: SUCCESS ================= -->
         <div x-show="step === 'VERIFIED'" class="space-y-6 py-4 text-center">
             <div class="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-emerald-500/20 animate-bounce">
                 <i class="fa-solid fa-circle-check"></i>
@@ -291,7 +294,6 @@
             </div>
         </div>
 
-        <!-- ================= STEP 5: FAILED ================= -->
         <div x-show="step === 'FAILED'" class="space-y-6 py-6 text-center">
             <div class="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto text-3xl border border-rose-500/20">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -305,7 +307,6 @@
 
     </div>
 
-    <!-- JavaScript Aplikasi -->
     <script>
         function appData() {
             return {
@@ -316,7 +317,7 @@
                 currentTime: '',
                 currentDate: '',
                 
-                gasUrl: localStorage.getItem('gasUrl') || 'https://script.google.com/macros/s/AKfycbxtcIDgEllsn2LqH6qQ9rOlIYPcuGYJJyj97NcbLvBB6G2yP9_-YNUwmj55QBxIEOG19w/exec',
+                gasUrl: localStorage.getItem('gasUrl') || 'MASUKKAN_URL_WEB_APP_ANDA_DISINI',
                 officeLat: parseFloat(localStorage.getItem('officeLat')) || -6.175392,
                 officeLng: parseFloat(localStorage.getItem('officeLng')) || 106.827153,
                 maxRadius: parseInt(localStorage.getItem('maxRadius')) || 100,
@@ -338,6 +339,7 @@
                 faceStatusText: 'Bersiap, mengambil foto otomatis...',
                 
                 // Variabel Registrasi (Input Mandiri)
+                tempUnrecognizedNip: '', // Menyimpan ID tak dikenal sementara
                 registerNip: '',
                 registerName: '',
                 registerJabatan: '',
@@ -365,9 +367,9 @@
                 },
 
                 updateClock() {
-                    const now = new Date();
-                    this.currentDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const MathTime = new Date();
+                    this.currentDate = MathTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    this.currentTime = MathTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 },
 
                 selectMode(mode) {
@@ -455,10 +457,10 @@
                         this.step = 'FACE';
                         this.startCameraAndCountdown();
                     } else {
-                        // Jika ID tidak ditemukan/belum di-approve, buka Form Registrasi
+                        // --- PEMBARUAN: Jika tidak ditemukan, buka Menu Opsi Pilihan Terlebih Dahulu ---
                         if (this.html5QrCode) { try { this.html5QrCode.stop(); } catch (e) {} }
-                        this.registerNip = cleanId;
-                        this.step = 'REGISTER';
+                        this.tempUnrecognizedNip = cleanId;
+                        this.step = 'ID_NOT_FOUND_OPTION';
                     }
                 },
 
@@ -472,7 +474,18 @@
                     this.processQR(cleanId);
                 },
 
-                // --- FUNGSI SUBMIT DATA REGISTRASI MANDIRI ---
+                // Fungsi tombol Coba Lagi dari Menu Pilihan
+                retryScanner() {
+                    this.step = 'QR';
+                    this.initQRScanner();
+                },
+
+                // Fungsi tombol Registrasi dari Menu Pilihan
+                goToRegistration() {
+                    this.registerNip = this.tempUnrecognizedNip;
+                    this.step = 'REGISTER';
+                },
+
                 async submitRegistration() {
                     if (!this.registerName || !this.registerJabatan) {
                         alert("Harap isi Nama dan Jabatan Anda terlebih dahulu.");
@@ -493,10 +506,10 @@
                         const result = await response.json();
                         
                         if (result.status === 'success') {
-                            alert(result.message); // Menampilkan sukses ke user
+                            alert(result.message);
                             this.resetFullFlow();
                         } else {
-                            alert(result.message); // Cek duplikat atau status Pending 
+                            alert(result.message);
                             this.resetFullFlow();
                         }
                     } catch (e) {
@@ -633,10 +646,10 @@
                     this.attempts = 0;
                     if (this.countdownTimer) clearInterval(this.countdownTimer);
                     
-                    // Reset field registrasi
                     this.registerName = '';
                     this.registerJabatan = '';
                     this.registerNip = '';
+                    this.tempUnrecognizedNip = '';
                     this.isRegistering = false;
                 },
 
